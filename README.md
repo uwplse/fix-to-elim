@@ -1,2 +1,1 @@
-# fix-to-elim
-Fixpoint to eliminator translation in Coq
+This repository contains the `Preprocess` command by [Nate Yazdani](https://github.com/nateyazdani), which does simple match and fixpoint to eliminator translation for certain terms, as described in the [DEVOID paper](http://tlringer.github.io/pdf/ornpaper.pdf). This command is used in both [PUMPKIN PATCH](https://github.com/uwplse/PUMPKIN-PATCH) and [DEVOID](https://github.com/uwplse/ornamental-search). Here it exists as a standalone plugin so that others can build on it as desired.
