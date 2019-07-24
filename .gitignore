@@ -1,0 +1,13 @@
+Makefile
+Makefile.conf
+*.d
+*.aux
+*.glob
+*.vo
+*.a
+*.cmi
+*.cmx
+*.cmxa
+*.cmxs
+*.o
+.merlin

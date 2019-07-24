@@ -1,0 +1,8 @@
+-I src
+-R src Fixtranslation
+-Q theories Fixtranslation
+
+src/fixtranslation.ml4
+src/fixtoelim.mlpack
+
+theories/Fixtoelim.v
