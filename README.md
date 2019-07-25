@@ -11,3 +11,4 @@ cd plugin
 
 For examples of using this plugin within another plugin,
 see [PUMPKIN PATCH](https://github.com/uwplse/PUMPKIN-PATCH) and [DEVOID](https://github.com/uwplse/ornamental-search).
+(Currently, these use cases are in the 0.1 branches.)
