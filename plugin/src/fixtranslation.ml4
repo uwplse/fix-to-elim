@@ -6,6 +6,7 @@ open Desugar
 open Names
 open Utilities
 open Zooming
+open Transform
 
 module Globmap = Globnames.Refmap
         

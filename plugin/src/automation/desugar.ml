@@ -14,6 +14,7 @@ open CErrors
 open Coqterms
 open Abstraction
 open Environ
+open Typeutils
 
 (*
  * Pair the outputs of two functions on the same input.

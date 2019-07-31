@@ -1,6 +1,10 @@
 Utilities
 Coqterms
 Debruijn
+Termdiffutils
+Typeutils
+Indutils
+Transform
 
 Abstraction
 
