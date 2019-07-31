@@ -1,7 +1,9 @@
 Utilities
 Coqterms
+Inference
+Convertibility
 Debruijn
-Termdiffutils
+Diffutils
 Typeutils
 Indutils
 Transform
