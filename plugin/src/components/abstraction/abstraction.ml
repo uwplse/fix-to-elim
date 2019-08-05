@@ -1,10 +1,5 @@
-open Environ
-open Evd
 open Constr
-open Coqterms
-open Utilities
-open Filters
-open Zooming
+open Apputils
 
 (* 
  * Replace all occurrences of the first term in the second term with Rel 1,

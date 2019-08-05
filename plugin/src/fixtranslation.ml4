@@ -1,12 +1,11 @@
 DECLARE PLUGIN "fixtoelim"
 
 open Stdarg
-open Coqterms
 open Desugar
 open Names
-open Utilities
-open Zooming
 open Transform
+open Nameutils
+open Substitution
 
 module Globmap = Globnames.Refmap
         

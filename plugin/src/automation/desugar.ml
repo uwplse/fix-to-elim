@@ -11,10 +11,13 @@ open Term
 open Constr
 open Inductiveops
 open CErrors
-open Coqterms
 open Abstraction
-open Environ
 open Inference
+open Contextutils
+open Apputils
+open Defutils
+open Funutils
+open Envutils
 
 (*
  * Pair the outputs of two functions on the same input.
