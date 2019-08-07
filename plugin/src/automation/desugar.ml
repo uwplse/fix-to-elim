@@ -364,6 +364,7 @@ let desugar_fixpoint env evm fix_pos fix_name fix_type fix_term =
 let desugar_match env evm info pred discr cases =
   let typ = lambda_to_prod pred in
   let evm, discr_typ = infer_type env evm discr in
+  let discr_typ = Reducers.whd env evm discr_typ in (* TODO use reduce_type *)
   let pind, params, indices = decompose_indvect discr_typ in
   let ind_fam = make_ind_family (pind, Array.to_list params) in
   let elim_head = configure_eliminator env evm ind_fam typ in
