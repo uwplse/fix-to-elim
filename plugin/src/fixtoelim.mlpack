@@ -9,6 +9,7 @@ Nameutils
 Inference
 Convertibility
 
+Sigmautils
 Idutils
 
 Envutils
@@ -18,6 +19,7 @@ Hofs
 Debruijn
 Substitution
 Reducers
+Zooming
 Filters
 
 Indutils
