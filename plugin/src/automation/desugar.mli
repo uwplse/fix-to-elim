@@ -1,5 +1,6 @@
 open Environ
 open Constr
+open Evd
 
 (*
  * Translate the given term into an equivalent, bisimulative (i.e., homomorpic
@@ -8,4 +9,4 @@ open Constr
  *
  * Mutual recursion and co-recursion are not supported.
  *)
-val desugar_constr : env -> Evd.evar_map ref -> constr -> constr (* Coqterms.constr_transformer *)
+val desugar_constr : Transform.constr_transformer

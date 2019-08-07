@@ -250,6 +250,9 @@ let expand_case env evm case_term cons_sum =
  * NOTE: Motive adjustment might be too overzealous; under some particular
  * conditions, Coq does allow dependency in the elimination motive for a Prop-
  * sorted inductive family.
+ *
+ * TODO possible to reuse any of our existing functions here? Or move some
+ * of this back to lib?
  *)
 let configure_eliminator env evm ind_fam typ =
   let ind, params = dest_ind_family ind_fam |> on_fst out_punivs in
@@ -262,10 +265,11 @@ let configure_eliminator env evm ind_fam typ =
     else
       typ_ctxt, typ_body
   in
-  let elim =
+  let evm, elim =
     let typ_env = Environ.push_rel_context typ_ctxt env in
-    let typ_sort = e_infer_sort typ_env evm typ_body in
-    Indrec.lookup_eliminator ind typ_sort |> e_new_global evm
+    let evm, typ_sort = infer_sort typ_env evm typ_body in
+    let elim_trm = Indrec.lookup_eliminator ind typ_sort in
+    new_global evm elim_trm
   in
   let motive = recompose_lam_assum typ_ctxt typ_body in
   mkApp (elim, Array.append (Array.of_list params) [|motive|])
@@ -281,7 +285,7 @@ let desugar_recursion env evm ind_fam fix_name fix_type fix_term =
   let premises =
     let fix_env = Environ.push_rel (rel_assum (fix_name, fix_type)) env in
     let build_premise cons_sum =
-      lift_constructor 1 cons_sum |> split_case fix_env !evm fix_term |>
+      lift_constructor 1 cons_sum |> split_case fix_env evm fix_term |>
       premise_of_case fix_env ind_fam |> drop_rel
     in
     get_constructors env ind_fam |> Array.map build_premise
@@ -359,14 +363,15 @@ let desugar_fixpoint env evm fix_pos fix_name fix_type fix_term =
  *)
 let desugar_match env evm info pred discr cases =
   let typ = lambda_to_prod pred in
-  let pind, params, indices = decompose_indvect (e_infer_type env evm discr) in
+  let evm, discr_typ = infer_type env evm discr in
+  let pind, params, indices = decompose_indvect discr_typ in
   let ind_fam = make_ind_family (pind, Array.to_list params) in
   let elim_head = configure_eliminator env evm ind_fam typ in
   let premises =
     let fix_env = Environ.push_rel (rel_assum (Name.Anonymous, typ)) env in
     let cases = Array.map lift_rel cases in
     let build_premise cons_case cons_sum =
-      lift_constructor 1 cons_sum |> expand_case fix_env !evm cons_case |>
+      lift_constructor 1 cons_sum |> expand_case fix_env evm cons_case |>
       premise_of_case fix_env ind_fam |> drop_rel
     in
     get_constructors fix_env ind_fam |> Array.map2 build_premise cases
@@ -408,5 +413,5 @@ let desugar_constr env evm term =
       Constr.map (aux env) term
   in
   let term' = aux env term in
-  ignore (e_infer_type env evm term'); (* to infer universe constraints *)
-  term'
+  let evm, _ = infer_type env evm term' in
+  evm, term'
