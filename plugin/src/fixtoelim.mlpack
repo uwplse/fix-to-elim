@@ -3,13 +3,13 @@ Utilities
 Apputils
 Funutils
 
-Idutils
-
 Defutils
 Nameutils
 
 Inference
 Convertibility
+
+Idutils
 
 Envutils
 Contextutils
