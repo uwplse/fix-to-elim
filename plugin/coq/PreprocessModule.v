@@ -13,3 +13,4 @@ Require List.
  * only partially while preserving well-typedness.
  *)
 Preprocess Module List as List' {include length, app}.
+Print List'.
