@@ -6,9 +6,22 @@ open Names
 open Transform
 open Nameutils
 open Substitution
+open Declarations
 
 module Globmap = Globnames.Refmap
-        
+
+(* TODO move, check *)
+let env_for_const const_body =
+  let env =
+    match const_body.const_universes with
+    | Monomorphic_const univs ->
+       Global.env () |> Environ.push_context_set univs
+    | Polymorphic_const univs ->
+       CErrors.user_err
+         ~hdr:"transform_constant"
+         Pp.(str "Universe polymorphism is not supported")
+  in env, Evd.from_env env
+                   
 (*
  * Translate each fix or match subterm into an equivalent application of an
  * eliminator, defining the new term with the given name.
@@ -17,11 +30,11 @@ module Globmap = Globnames.Refmap
  * (By Nate Yazdani, from DEVOID)
  *)
 let do_desugar_constant ident const_ref =
-  ignore
-    begin
-      qualid_of_reference const_ref |> Nametab.locate_constant |>
-      Global.lookup_constant |> transform_constant ident desugar_constr
-    end
+  let const_id = qualid_of_reference const_ref in
+  let located = Nametab.locate_constant const_id in
+  let const_body = Global.lookup_constant located in
+  let env, sigma = env_for_const const_body in
+  ignore (transform_constant env sigma ident desugar_constr const_body)
 
 (*
  * Translate fix and match expressions into eliminations, as in
@@ -37,17 +50,19 @@ let do_desugar_module ?(incl=[]) ident mod_ref =
   let include_constant subst const =
     let ident = Label.to_id (Constant.label const) in
     let tr_constr env evm = subst_globals subst %> desugar_constr env evm in
-    let const' =
-      Global.lookup_constant const |> transform_constant ident tr_constr
-    in
+    let const_body = Global.lookup_constant const in
+    let env, sigma = env_for_const const_body in
+    let const' = transform_constant env sigma ident tr_constr const_body in
     Globmap.add (ConstRef const) (ConstRef const') subst
   in
   let init () = List.fold_left include_constant Globmap.empty consts in
-  ignore
-    begin
-      qualid_of_reference mod_ref |> Nametab.locate_module |>
-      Global.lookup_module |> transform_module_structure ~init ident desugar_constr
-    end
+  let mod_qualid = qualid_of_reference mod_ref in
+  let located = Nametab.locate_module mod_qualid in
+  let mod_body = Global.lookup_module located in
+  let univs = mod_body.mod_constraints in
+  let env = Global.env () |> Environ.push_context_set univs in
+  let sigma = Evd.from_env env in
+  ignore (transform_module_structure ~init env sigma ident desugar_constr)
 
 (* --- Commands --- *)
 
