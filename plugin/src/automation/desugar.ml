@@ -19,29 +19,7 @@ open Defutils
 open Funutils
 open Envutils
 open Utilities
-
-(*
- * Convenient wrapper around Vars.liftn shift (skip + 1) term.
- *)
-let lift_rels ?(skip=0) shift term =
-  Vars.liftn shift (skip + 1) term
-
-(*
- * Same as lift_rels ~skip:skip 1.
- *)
-let lift_rel ?(skip=0) = lift_rels ~skip:skip 1
-
-(*
- * Convenient wrapper around Vars.liftn (-shift) (skip + 1) term.
- *)
-let drop_rels ?(skip=0) shift term =
-  assert (Vars.noccur_between (skip + 1) (skip + shift) term);
-  Vars.liftn (-shift) (skip + 1) term
-
-(*
- * Same as drop_rels ~skip:skip 1.
- *)
-let drop_rel ?(skip=0) = drop_rels ~skip:skip 1
+open Debruijn
 
 (*
  * Function from: 
@@ -188,11 +166,11 @@ let premise_of_case env ind_fam (ctxt, body) =
     let i = Debruijn.unshift_i_by i nb in
     let j = Debruijn.shift_i i in
     let body' =
-      match eq_constr_head (lift_rels i ind_head) (rel_type decl) with
+      match eq_constr_head (shift_by i ind_head) (rel_type decl) with
       | Some indices ->
         assert (is_rel_assum decl);
-        let args = Array.append (Array.map lift_rel indices) [|mkRel 1|] in
-        let rec_type = prod_appvect (lift_rels j fix_type) args in
+        let args = Array.append (Array.map shift indices) [|mkRel 1|] in
+        let rec_type = prod_appvect (shift_by j fix_type) args in
         let fix_call = mkApp (mkRel j, args) in
         mkLambda (fix_name, rec_type, abstract_subterm fix_call body)
       | _ ->
@@ -215,7 +193,7 @@ let split_case env evm fun_term cons_sum =
   let cons = build_dependent_constructor cons_sum in
   let env = Environ.push_rel_context cons_sum.cs_args env in
   let body =
-    let head = lift_rels cons_sum.cs_nargs fun_term in
+    let head = shift_by cons_sum.cs_nargs fun_term in
     let args = Array.append cons_sum.cs_concl_realargs [|cons|] in
     mkApp (head, args) |> Reduction.nf_betaiota env
   in
@@ -226,7 +204,7 @@ let split_case env evm fun_term cons_sum =
  *)
 let expand_case env evm case_term cons_sum =
   let body =
-    let head = lift_rels cons_sum.cs_nargs case_term in
+    let head = shift_by cons_sum.cs_nargs case_term in
     let args = Rel.to_extended_list mkRel 0 cons_sum.cs_args in
     Reduction.beta_applist head args
   in
@@ -256,7 +234,7 @@ let configure_eliminator env evm ind_fam typ =
     let typ_ctxt, typ_body = decompose_prod_n_assum nb typ in
     let ind_sort = get_arity env ind_fam |> snd in
     if Sorts.family_equal ind_sort Sorts.InProp then
-      List.tl typ_ctxt, drop_rel typ_body
+      List.tl typ_ctxt, unshift typ_body
     else
       typ_ctxt, typ_body
   in
@@ -281,7 +259,7 @@ let desugar_recursion env evm ind_fam fix_name fix_type fix_term =
     let fix_env = Environ.push_rel (rel_assum (fix_name, fix_type)) env in
     let build_premise cons_sum =
       lift_constructor 1 cons_sum |> split_case fix_env evm fix_term |>
-      premise_of_case fix_env ind_fam |> drop_rel
+      premise_of_case fix_env ind_fam |> unshift
     in
     get_constructors env ind_fam |> Array.map build_premise
   in
@@ -312,7 +290,7 @@ let desugar_fixpoint env evm fix_pos fix_name fix_type fix_term =
   let _, fix_term = decompose_lam_n_zeta nb fix_term in
   (* Gather information on the inductive type for recursion/elimination *)
   let ind_name, ind_type = Rel.lookup 1 fix_ctxt |> pair rel_name rel_type in
-  let pind, params, indices = decompose_ind (lift_rel ind_type) in
+  let pind, params, indices = decompose_ind (shift ind_type) in
   let ind_fam = make_ind_family (pind, params) in
   let env = Environ.push_rel_context fix_ctxt env in (* for eventual wrapper *)
   let rec_ctxt, rec_args = (* quantify the inductive type like an eliminator *)
@@ -322,13 +300,13 @@ let desugar_fixpoint env evm fix_pos fix_name fix_type fix_term =
     Array.of_list (indices @ (mkRel 1) :: Rel.to_extended_list mkRel 0 fun_ctxt)
   in
   let nb' = Rel.length rec_ctxt in
-  let k = Debruijn.unshift_i_by nb nb' in (* always more bindings than before *)
+  let k = unshift_i_by nb nb' in (* always more bindings than before *)
   let rec_type =
-    fix_type |> lift_rels ~skip:nb nb |> (* for external wrapper *)
-    lift_rels ~skip:nb k |> smash_prod_assum rec_ctxt
+    fix_type |> shift_local nb nb |> (* for external wrapper *)
+    shift_local nb k |> smash_prod_assum rec_ctxt
   in
   let rec_term =
-    let nb_rec = Debruijn.shift_i nb in (* include self reference *)
+    let nb_rec = shift_i nb in (* include self reference *)
     let rec_env = Environ.push_rel (rel_assum (fix_name, rec_type)) env in
     let rec_ctxt = Termops.lift_rel_context 1 rec_ctxt in
     let fix_self = (* wrapper to adjust arguments for a recursive call *)
@@ -336,9 +314,9 @@ let desugar_fixpoint env evm fix_pos fix_name fix_type fix_term =
         (Termops.lift_rel_context nb_rec fix_ctxt)
         (mkApp (mkRel nb_rec, rec_args))
     in
-    fix_term |> lift_rels ~skip:nb_rec nb |> (* for external wrapper *)
-    lift_rels ~skip:nb k |> smash_lam_assum rec_ctxt |>
-    lift_rel ~skip:1 |> Vars.subst1 fix_self |> Reduction.nf_betaiota rec_env
+    fix_term |> shift_local nb_rec nb |> (* for external wrapper *)
+    shift_local nb k |> smash_lam_assum rec_ctxt |>
+    shift_local 1 1 |> Vars.subst1 fix_self |> Reduction.nf_betaiota rec_env
   in
   (* Desugar the simple recursive function into an elimination form *)
   let rec_elim = desugar_recursion env evm ind_fam fix_name rec_type rec_term in
@@ -365,10 +343,10 @@ let desugar_match env evm info pred discr cases =
   let elim_head = configure_eliminator env evm ind_fam typ in
   let premises =
     let fix_env = Environ.push_rel (rel_assum (Name.Anonymous, typ)) env in
-    let cases = Array.map lift_rel cases in
+    let cases = Array.map shift cases in
     let build_premise cons_case cons_sum =
       lift_constructor 1 cons_sum |> expand_case fix_env evm cons_case |>
-      premise_of_case fix_env ind_fam |> drop_rel
+      premise_of_case fix_env ind_fam |> unshift
     in
     get_constructors fix_env ind_fam |> Array.map2 build_premise cases
   in
