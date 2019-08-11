@@ -20,10 +20,17 @@ open Funutils
 open Envutils
 open Utilities
 open Debruijn
+open Reducers
+
+(* --- Utilities for inductive types --- *)
+
+(*
+ * TODO move some/all of these into coq-plugin-lib, and make follow
+ * the standard in that lib
+ *)
 
 (*
  * Extract the components of an inductive type: the (universe-instantiated)
- * inductive name, the sequence of parameters, and the sequence of indices.
  *)
 let decompose_indvect ind_type =
   let pind, args = decompose_appvect ind_type |> on_fst destInd in
@@ -36,7 +43,7 @@ let decompose_indvect ind_type =
  *)
 let decompose_ind ind_type =
   decompose_indvect ind_type |> on_pi2 Array.to_list |> on_pi3 Array.to_list
-
+                                                               
 (*
  * Construct a relative context, consisting of only local assumptions,
  * quantifying over instantiations of the inductive family.
@@ -51,6 +58,8 @@ let build_inductive_context env ind_fam ind_name =
   let ind_decl = rel_assum (ind_name, ind_type) in
   get_arity env ind_fam |> fst |> Rel.add ind_decl |> Termops.smash_rel_context
 
+(* --- Fixpoint to eliminator translation --- *)
+                                                        
 (*
  * Transform the relative context of a fixed-point function into a form suitable
  * for simple recursion (i.e., eliminator-style quantification).
@@ -96,8 +105,8 @@ let premise_of_case env ind_fam (ctxt, body) =
   let ind_head = dest_ind_family ind_fam |> on_fst mkIndU |> applist in
   let fix_name, fix_type = Environ.lookup_rel 1 env |> pair rel_name rel_type in
   let insert_recurrence i body decl =
-    let i = Debruijn.unshift_i_by i nb in
-    let j = Debruijn.shift_i i in
+    let i = unshift_i_by i nb in
+    let j = shift_i i in
     let body' =
       match eq_constr_head (shift_by i ind_head) (rel_type decl) with
       | Some indices ->
@@ -108,10 +117,8 @@ let premise_of_case env ind_fam (ctxt, body) =
         mkLambda (fix_name, rec_type, abstract_subterm fix_call body)
       | _ ->
         body
-    in
-    mkLambda_or_LetIn decl body'
-  in
-  List.fold_left_i insert_recurrence 0 body ctxt
+    in mkLambda_or_LetIn decl body'
+  in List.fold_left_i insert_recurrence 0 body ctxt
 
 (*
  * Given a constructor summary (cf., Inductiveops), build a parameter context
@@ -122,26 +129,24 @@ let premise_of_case env ind_fam (ctxt, body) =
  * Partial evaluation reduces to beta/iota-normal form. Exclusion of delta
  * reduction is intentional (rarely beneficial, usually detrimental).
  *)
-let split_case env evm fun_term cons_sum =
+let split_case env sigma fun_term cons_sum =
   let cons = build_dependent_constructor cons_sum in
   let env = Environ.push_rel_context cons_sum.cs_args env in
   let body =
     let head = shift_by cons_sum.cs_nargs fun_term in
     let args = Array.append cons_sum.cs_concl_realargs [|cons|] in
     mkApp (head, args) |> Reduction.nf_betaiota env
-  in
-  deanonymize_context env evm cons_sum.cs_args, body
+  in sigma, deanonymize_context env sigma cons_sum.cs_args, body
 
 (*
  * Eta-expand a case term according to the corresponding constructor's type.
  *)
-let expand_case env evm case_term cons_sum =
+let expand_case env sigma case_term cons_sum =
   let body =
     let head = shift_by cons_sum.cs_nargs case_term in
     let args = Rel.to_extended_list mkRel 0 cons_sum.cs_args in
     Reduction.beta_applist head args
-  in
-  deanonymize_context env evm cons_sum.cs_args, body
+  in sigma, deanonymize_context env sigma cons_sum.cs_args, body
 
 (*
  * Build an elimination head (partially applied eliminator) including the
@@ -160,7 +165,7 @@ let expand_case env evm case_term cons_sum =
  * TODO possible to reuse any of our existing functions here? Or move some
  * of this back to lib?
  *)
-let configure_eliminator env evm ind_fam typ =
+let configure_eliminator env sigma ind_fam typ =
   let ind, params = dest_ind_family ind_fam |> on_fst out_punivs in
   let nb = inductive_nrealargs ind + 1 in
   let typ_ctxt, typ_body =
@@ -171,32 +176,31 @@ let configure_eliminator env evm ind_fam typ =
     else
       typ_ctxt, typ_body
   in
-  let evm, elim =
+  let sigma, elim =
     let typ_env = Environ.push_rel_context typ_ctxt env in
-    let evm, typ_sort = infer_sort typ_env evm typ_body in
+    let sigma, typ_sort = infer_sort typ_env sigma typ_body in
     let elim_trm = Indrec.lookup_eliminator ind typ_sort in
-    new_global evm elim_trm
+    new_global sigma elim_trm
   in
   let motive = recompose_lam_assum typ_ctxt typ_body in
-  mkApp (elim, Array.append (Array.of_list params) [|motive|])
+  sigma, mkApp (elim, Array.append (Array.of_list params) [|motive|])
 
 (*
  * Translate a fixed-point function using simple recursion (i.e., quantifying
  * the inductive type like an eliminator) into an elimination form.
  *)
-let desugar_recursion env evm ind_fam fix_name fix_type fix_term =
+let desugar_recursion env sigma ind_fam fix_name fix_type fix_term =
   (* Build the elimination head (eliminator with parameters and motive) *)
-  let elim_head = configure_eliminator env evm ind_fam fix_type in
+  let sigma, elim_head = configure_eliminator env sigma ind_fam fix_type in
   (* Build the minor premises *)
   let premises =
-    let fix_env = Environ.push_rel (rel_assum (fix_name, fix_type)) env in
+    let fix_env = push_local (fix_name, fix_type) env in
     let build_premise cons_sum =
-      lift_constructor 1 cons_sum |> split_case fix_env evm fix_term |>
-      premise_of_case fix_env ind_fam |> unshift
-    in
-    get_constructors env ind_fam |> Array.map build_premise
-  in
-  mkApp (elim_head, premises)
+      let cons_sum = lift_constructor 1 cons_sum in
+      let sigma, split_ctx, split = split_case fix_env sigma fix_term cons_sum in
+      unshift (premise_of_case fix_env ind_fam (split_ctx, split)) (* TODO need sigma? *)
+    in get_constructors env ind_fam |> Array.map build_premise
+  in sigma, mkApp (elim_head, premises)
 
 (*
  * Translate a fixed-point function into an elimination form.
@@ -216,7 +220,7 @@ let desugar_recursion env evm ind_fam fix_name fix_type fix_term =
  * new version (by expanded definition). (Such incidental mixtures arise, for
  * example, in some of the List module's proofs regarding the In predicate.)
  *)
-let desugar_fixpoint env evm fix_pos fix_name fix_type fix_term =
+let desugar_fixpoint env sigma fix_pos fix_name fix_type fix_term =
   let nb = fix_pos + 1 in (* number of bindings guarding recursion *)
   (* Pull off bindings through the parameter guarding structural recursion *)
   let fix_ctxt, fix_type = decompose_prod_n_zeta nb fix_type in
@@ -252,9 +256,9 @@ let desugar_fixpoint env evm fix_pos fix_name fix_type fix_term =
     shift_local 1 1 |> Vars.subst1 fix_self |> Reduction.nf_betaiota rec_env
   in
   (* Desugar the simple recursive function into an elimination form *)
-  let rec_elim = desugar_recursion env evm ind_fam fix_name rec_type rec_term in
+  let sigma, rec_elim = desugar_recursion env sigma ind_fam fix_name rec_type rec_term in
   (* Wrap the elimination form to reorder initial arguments *)
-  recompose_lam_assum fix_ctxt (mkApp (rec_elim, rec_args))
+  sigma, recompose_lam_assum fix_ctxt (mkApp (rec_elim, rec_args))
 
 (*
  * Given the components of a match expression, build an equivalent elimination
@@ -267,23 +271,21 @@ let desugar_fixpoint env evm fix_pos fix_name fix_type fix_term =
  * and its fixed point (i.e., f =\= fix[_.f]). Definitional equality should hold
  * (at least) when the discriminee term is head-canonical.
  *)
-let desugar_match env evm info pred discr cases =
+let desugar_match env sigma info pred discr cases =
   let typ = lambda_to_prod pred in
-  let evm, discr_typ = infer_type env evm discr in
-  let discr_typ = Reducers.whd env evm discr_typ in (* TODO use reduce_type *)
+  let sigma, discr_typ = reduce_type_using whd env sigma discr in
   let pind, params, indices = decompose_indvect discr_typ in
   let ind_fam = make_ind_family (pind, Array.to_list params) in
-  let elim_head = configure_eliminator env evm ind_fam typ in
+  let sigma, elim_head = configure_eliminator env sigma ind_fam typ in
   let premises =
-    let fix_env = Environ.push_rel (rel_assum (Name.Anonymous, typ)) env in
+    let fix_env = push_local (Name.Anonymous, typ) env in
     let cases = Array.map shift cases in
     let build_premise cons_case cons_sum =
-      lift_constructor 1 cons_sum |> expand_case fix_env evm cons_case |>
-      premise_of_case fix_env ind_fam |> unshift
-    in
-    get_constructors fix_env ind_fam |> Array.map2 build_premise cases
-  in
-  mkApp (elim_head, Array.concat [premises; indices; [|discr|]])
+      let cons_sum = lift_constructor 1 cons_sum in
+      let sigma, expanded_ctx, expanded = expand_case fix_env sigma cons_case cons_sum in
+      unshift (premise_of_case fix_env ind_fam (expanded_ctx, expanded)) (* TODO need sigma? *)
+    in get_constructors fix_env ind_fam |> Array.map2 build_premise cases
+  in sigma, mkApp (elim_head, Array.concat [premises; indices; [|discr|]])
 
 (*
  * Translate the given term into an equivalent, bisimulative (i.e., homomorpic
@@ -292,33 +294,35 @@ let desugar_match env evm info pred discr cases =
  *
  * Mutual recursion, co-recursion, and universe polymorphism are not supported.
  *)
-let desugar_constr env evm term =
-  let rec aux env term =
-    match Constr.kind term with
+let desugar_constr env sigma term =
+  let rec aux env sigma term =
+    match Constr.kind term with (* TODO can use map_term *)
     | Lambda (name, param, body) ->
-      let param' = aux env param in
-      let body' = aux (push_local (name, param') env) body in
-      mkLambda (name, param', body')
+      let sigma, param' = aux env sigma param in
+      let sigma, body' = aux (push_local (name, param') env) sigma body in
+      sigma, mkLambda (name, param', body')
     | Prod (name, param, body) ->
-      let param' = aux env param in
-      let body' = aux (push_local (name, param') env) body in
-      mkProd (name, param', body')
+      let sigma, param' = aux env sigma param in
+      let sigma, body' = aux (push_local (name, param') env) sigma body in
+      sigma, mkProd (name, param', body')
     | LetIn (name, local, annot, body) ->
-      let local' = aux env local in
-      let annot' = aux env annot in
-      let body' = aux (push_let_in (name, local', annot') env) body in
-      mkLetIn (name, local', annot', body')
+      let sigma, local' = aux env sigma local in
+      let sigma, annot' = aux env sigma annot in
+      let sigma, body' = aux (push_let_in (name, local', annot') env) sigma body in
+      sigma, mkLetIn (name, local', annot', body')
     | Fix (([|fix_pos|], 0), ([|fix_name|], [|fix_type|], [|fix_term|])) ->
-      desugar_fixpoint env evm fix_pos fix_name fix_type fix_term |> aux env
+      let sigma, fix = desugar_fixpoint env sigma fix_pos fix_name fix_type fix_term in
+      aux env sigma fix
     | Fix _ ->
       user_err ~hdr:"desugar" (Pp.str "mutual recursion not supported")
     | CoFix _ ->
       user_err ~hdr:"desugar" (Pp.str "co-recursion not supported")
     | Case (info, pred, discr, cases) ->
-      desugar_match env evm info pred discr cases |> aux env
+      let sigma, mat = desugar_match env sigma info pred discr cases in
+      aux env sigma mat
     | _ ->
-      Constr.map (aux env) term
+      sigma, Constr.map (fun tr -> snd (aux env sigma tr)) term (* TODO sigma handling here? *)
   in
-  let term' = aux env term in
-  let evm, _ = infer_type env evm term' in
-  evm, term'
+  let sigma, term' = aux env sigma term in
+  let sigma, _ = infer_type env sigma term' in
+  sigma, term'
