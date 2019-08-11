@@ -18,12 +18,7 @@ open Apputils
 open Defutils
 open Funutils
 open Envutils
-
-(*
- * Pair the outputs of two functions on the same input.
- *)
-let pair f g =
-  fun x -> f x, g x
+open Utilities
 
 (*
  * Convenient wrapper around Vars.liftn shift (skip + 1) term.
