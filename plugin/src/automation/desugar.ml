@@ -22,16 +22,6 @@ open Utilities
 open Debruijn
 
 (*
- * Instantiate a local assumption as a local definition, using the provided term
- * as its definition.
- *
- * Raises an assertion error if the local declaration is not a local assumption.
- *)
-let define_rel_decl body decl =
-  assert (is_rel_assum decl);
-  rel_defin (rel_name decl, body, rel_type decl)
-
-(*
  * Extract the components of an inductive type: the (universe-instantiated)
  * inductive name, the sequence of parameters, and the sequence of indices.
  *)
