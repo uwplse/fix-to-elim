@@ -22,17 +22,6 @@ open Utilities
 open Debruijn
 
 (*
- * Give a "reasonable" name to each anonymous local declaration in the relative
- * context. Name generation is according to standard Coq policy (cf., Namegen)
- * and does not guarantee freshness, but term type-checking is only sensitive to
- * anonymity. (Names are freshened by subscription when printed.)
- *)
-let deanonymize_context env evm ctxt =
-  List.map EConstr.of_rel_decl ctxt |>
-  Namegen.name_context env evm |>
-  List.map (EConstr.to_rel_decl evm)
-
-(*
  * Instantiate a local assumption as a local definition, using the provided term
  * as its definition.
  *
