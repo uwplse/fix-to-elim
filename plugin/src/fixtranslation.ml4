@@ -37,7 +37,7 @@ let do_desugar_module ?(incl=[]) ident mod_ref =
   let include_constant subst const =
     let ident = Label.to_id (Constant.label const) in
     let tr_constr env sigma = subst_globals subst %> desugar_constr env sigma in
-    let const' =
+    let _, const' = (* TODO need sigma? *)
       Global.lookup_constant const |> transform_constant ident tr_constr
     in
     Globmap.add (ConstRef const) (ConstRef const') subst

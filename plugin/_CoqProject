@@ -12,6 +12,7 @@
 -I src/coq-plugin-lib/src/coq/logicutils/inductive
 -I src/coq-plugin-lib/src/coq/logicutils/transformation
 -I src/coq-plugin-lib/src/coq/logicutils/typesandequality
+-I src/coq-plugin-lib/src/coq/devutils
 -R src Fixtranslation
 -Q theories Fixtranslation
 
@@ -65,6 +66,9 @@ src/coq-plugin-lib/src/coq/logicutils/inductive/indutils.ml
 
 src/coq-plugin-lib/src/coq/logicutils/transformation/transform.mli
 src/coq-plugin-lib/src/coq/logicutils/transformation/transform.ml
+
+src/coq-plugin-lib/src/coq/devutils/printing.mli
+src/coq-plugin-lib/src/coq/devutils/printing.ml
 
 src/components/abstraction/abstraction.mli
 src/components/abstraction/abstraction.ml

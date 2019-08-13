@@ -21,6 +21,8 @@ open Envutils
 open Utilities
 open Debruijn
 open Reducers
+open Stateutils
+open Hofs
 
 (* --- Utilities for inductive types --- *)
 
@@ -193,13 +195,13 @@ let desugar_recursion env sigma ind_fam fix_name fix_type fix_term =
   (* Build the elimination head (eliminator with parameters and motive) *)
   let sigma, elim_head = configure_eliminator env sigma ind_fam fix_type in
   (* Build the minor premises *)
-  let premises =
+  let sigma, premises =
     let fix_env = push_local (fix_name, fix_type) env in
-    let build_premise cons_sum =
+    let build_premise sigma cons_sum =
       let cons_sum = lift_constructor 1 cons_sum in
       let sigma, split_ctx, split = split_case fix_env sigma fix_term cons_sum in
-      unshift (premise_of_case fix_env ind_fam (split_ctx, split)) (* TODO need sigma? *)
-    in get_constructors env ind_fam |> Array.map build_premise
+      sigma, unshift (premise_of_case fix_env ind_fam (split_ctx, split))
+    in map_fold_state_array sigma build_premise (get_constructors env ind_fam)
   in sigma, mkApp (elim_head, premises)
 
 (*
@@ -283,7 +285,7 @@ let desugar_match env sigma info pred discr cases =
     let build_premise cons_case cons_sum =
       let cons_sum = lift_constructor 1 cons_sum in
       let sigma, expanded_ctx, expanded = expand_case fix_env sigma cons_case cons_sum in
-      unshift (premise_of_case fix_env ind_fam (expanded_ctx, expanded)) (* TODO need sigma? *)
+      unshift (premise_of_case fix_env ind_fam (expanded_ctx, expanded)) (* TODO sigma *)
     in get_constructors fix_env ind_fam |> Array.map2 build_premise cases
   in sigma, mkApp (elim_head, Array.concat [premises; indices; [|discr|]])
 
@@ -293,36 +295,39 @@ let desugar_match env sigma info pred discr cases =
  * expressions.
  *
  * Mutual recursion, co-recursion, and universe polymorphism are not supported.
+ *
+ * Talia: The combination of map_term_env_if and a recursive call basically says
+ * that we continue to apply the condition to subterms even when the predicate
+ * is successful. At some point, it may make sense to move this HOF into
+ * the library, too. But using map_term_env_if saves us from all of the
+ * boilerplate around threading things through terms with evars otherwise.
  *)
-let desugar_constr env sigma term =
-  let rec aux env sigma term =
-    match Constr.kind term with (* TODO can use map_term *)
-    | Lambda (name, param, body) ->
-      let sigma, param' = aux env sigma param in
-      let sigma, body' = aux (push_local (name, param') env) sigma body in
-      sigma, mkLambda (name, param', body')
-    | Prod (name, param, body) ->
-      let sigma, param' = aux env sigma param in
-      let sigma, body' = aux (push_local (name, param') env) sigma body in
-      sigma, mkProd (name, param', body')
-    | LetIn (name, local, annot, body) ->
-      let sigma, local' = aux env sigma local in
-      let sigma, annot' = aux env sigma annot in
-      let sigma, body' = aux (push_let_in (name, local', annot') env) sigma body in
-      sigma, mkLetIn (name, local', annot', body')
-    | Fix (([|fix_pos|], 0), ([|fix_name|], [|fix_type|], [|fix_term|])) ->
-      let sigma, fix = desugar_fixpoint env sigma fix_pos fix_name fix_type fix_term in
-      aux env sigma fix
-    | Fix _ ->
-      user_err ~hdr:"desugar" (Pp.str "mutual recursion not supported")
-    | CoFix _ ->
-      user_err ~hdr:"desugar" (Pp.str "co-recursion not supported")
-    | Case (info, pred, discr, cases) ->
-      let sigma, mat = desugar_match env sigma info pred discr cases in
-      aux env sigma mat
-    | _ ->
-      sigma, Constr.map (fun tr -> snd (aux env sigma tr)) term (* TODO sigma handling here? *)
+let desugar_constr env sigma trm =
+  let rec aux env (sigma, trm) =
+    map_term_env_if
+      (fun _ sigma _ trm -> sigma, isFix trm || isCoFix trm || isCase trm)
+      (fun env sigma _ trm ->
+        match kind trm with
+        | Fix (([|fix_pos|], 0), ([|fix_name|], [|fix_type|], [|fix_term|])) ->
+           aux
+             env
+             (desugar_fixpoint env sigma fix_pos fix_name fix_type fix_term)
+        | Fix _ ->
+           user_err ~hdr:"desugar" (Pp.str "mutual recursion not supported")
+        | CoFix _ ->
+           user_err ~hdr:"desugar" (Pp.str "co-recursion not supported")
+        | Case (info, pred, discr, cases) ->
+           aux
+             env
+             (desugar_match env sigma info pred discr cases)
+        | _ ->
+           failwith "(Theoretically) impossible state in desugar_constr")
+      (fun _ -> ())
+      env
+      sigma
+      ()
+      trm
   in
-  let sigma, term' = aux env sigma term in
-  let sigma, _ = infer_type env sigma term' in
-  sigma, term'
+  let sigma, trm' = aux env (sigma, trm) in
+  let sigma, _ = infer_type env sigma trm' in
+  sigma, trm'
