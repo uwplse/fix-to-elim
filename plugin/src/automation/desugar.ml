@@ -275,7 +275,7 @@ let desugar_fixpoint env sigma fix_pos fix_name fix_type fix_term =
  *)
 let desugar_match env sigma info pred discr cases =
   let typ = lambda_to_prod pred in
-  let sigma, discr_typ = Util.on_snd (EConstr.to_constr sigma) (reduce_type_using whd env sigma (EConstr.of_constr discr)) in
+  let sigma, discr_typ = reduce_type_using whd env sigma discr in
   let pind, params, indices = decompose_indvect discr_typ in
   let ind_fam = make_ind_family (pind, Array.to_list params) in
   let sigma, elim_head = configure_eliminator env sigma ind_fam typ in
