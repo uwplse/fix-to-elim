@@ -197,11 +197,11 @@ let desugar_recursion env sigma ind_fam fix_name fix_type fix_term =
   (* Build the minor premises *)
   let sigma, premises =
     let fix_env = push_local (fix_name, fix_type) env in
-    let build_premise sigma cons_sum =
+    let build_premise cons_sum sigma =
       let cons_sum = lift_constructor 1 cons_sum in
       let sigma, split_ctx, split = split_case fix_env sigma fix_term cons_sum in
       sigma, unshift (premise_of_case fix_env ind_fam (split_ctx, split))
-    in map_fold_state_array sigma build_premise (get_constructors env ind_fam)
+    in map_state_array build_premise (get_constructors env ind_fam) sigma
   in sigma, mkApp (elim_head, premises)
 
 (*
@@ -329,5 +329,5 @@ let desugar_constr env sigma trm =
       trm
   in
   let sigma, trm' = aux env (sigma, trm) in
-  let sigma, _ = infer_type env sigma trm' in
+  let _, _ = infer_type env sigma trm' in
   sigma, trm'
