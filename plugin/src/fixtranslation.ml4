@@ -99,12 +99,8 @@ let do_desugar_module ?(opaques=[]) ident mod_ref =
        if Globset.mem (ConstRef const) opaques then
          subst
        else
-         try
-           let _, const' = transform_constant ident tr_constr c in
-           Globmap.add (ConstRef const) (ConstRef const') subst
-         with _ ->
-           let _ = Feedback.msg_warning (Pp.str (Printf.sprintf "Could not transform nested constant %s" suffix)) in
-           subst
+         let _, const' = transform_constant ident tr_constr c in
+         Globmap.add (ConstRef const) (ConstRef const') subst
      in
      let consts = List.rev (get_all_consts m_consts) in
      let open Printing in

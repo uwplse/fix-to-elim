@@ -181,7 +181,7 @@ let configure_eliminator env sigma ind_fam typ =
   let sigma, elim =
     let typ_env = Environ.push_rel_context typ_ctxt env in
     let sigma, typ_sort = infer_sort typ_env sigma typ_body in
-    let elim_trm = Indrec.lookup_eliminator ind typ_sort in
+    let elim_trm = Indrec.lookup_eliminator ind typ_sort in (* TODO sometimes fails! *)
     new_global sigma elim_trm
   in
   let motive = recompose_lam_assum typ_ctxt typ_body in
