@@ -12,5 +12,5 @@ Require List.
  * at the cost of unwieldiness. It would be very difficult to translate terms
  * only partially while preserving well-typedness.
  *)
-Preprocess Module List as List' {include length, app}.
+Preprocess Module List as List'. (* TODO some subterms are broken *)
 Print List'.
