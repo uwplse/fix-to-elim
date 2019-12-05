@@ -13,6 +13,7 @@ open Hofs
 open Constr
 open Utilities
 open Envutils
+open Declarations
 
 module Globmap = Globnames.Refmap
 module Globset = Globnames.Refset
@@ -32,38 +33,28 @@ let do_desugar_constant ident const_ref =
     end
 
 (*
- * Translate fix and match expressions into eliminations, as in
- * do_desugar_constant, compositionally throughout a whole module.
- *
- * The optional argument is a list of constants outside the module to include
- * in the translated module as if they were components in the input module.
- * (By Nate Yazdani, from DEVOID)
+ * Initialize the set of opaque constants to ignore.
  *)
-let do_desugar_module ?(opaques=[]) ident mod_ref =
-  let env = Global.env () in
-  let m = lookup_module (locate_module (qualid_of_reference mod_ref)) in
-  let m_path = m.mod_mp in
-  let m_type = m.mod_type in
-  match m_type with
+let initialize_opaque_set opaques =
+  List.fold_left
+    (fun s r ->
+      let c = ConstRef (locate_constant (qualid_of_reference r)) in
+      Globset.add c s)
+    Globset.empty
+    opaques
+
+(*
+ * Get all constants a module refers to transitively
+ *)
+let all_transitive_constants env m =
+  let path = m.mod_mp in
+  match m.mod_type with
   | MoreFunctor _ ->
      CErrors.user_err (Pp.str "Preprocessing functors is not yet supported")
-  | NoFunctor m_fields ->
-     let m_consts =
-       List.map
-         (fun (l, _) -> mkConst (Constant.make2 m_path l))
-         m_fields
-     in
-     let opaques =
-       List.fold_left
-         (fun s r ->
-           let c = ConstRef (locate_constant (qualid_of_reference r)) in
-           Globset.add c s)
-         Globset.empty
-         opaques
-     in
-     (* recursively get all constants *)
-     let m_crefs = List.map (fun c -> ConstRef (fst (destConst c))) m_consts in
-     let seen = ref (List.fold_right Globset.add m_crefs Globset.empty) in
+  | NoFunctor fields ->
+     let cs = List.map (fun (l, _) -> mkConst (Constant.make2 path l)) fields in
+     let refs = List.map (fun c -> ConstRef (fst (destConst c))) cs in
+     let seen = ref (List.fold_right Globset.add refs Globset.empty) in
      let rec get_all_consts consts =
        match consts with
        | h :: tl ->
@@ -85,26 +76,39 @@ let do_desugar_module ?(opaques=[]) ident mod_ref =
           List.append h_consts_rec (List.append h_consts (get_all_consts tl))
        | _ ->
           [] 
-     in
-     let include_constant subst trm =
-       let glob = Globnames.global_of_constr trm in
-       let glob_ident = Nametab.basename_of_global glob in
-       let dirpath = Nametab.dirpath_of_global glob in
-       let prefixes = String.split_on_char '.' (DirPath.to_string dirpath) in
-       let suffix = Id.to_string glob_ident in
-       let ident = Id.of_string (String.concat "_" (snoc suffix prefixes)) in
-       let const = fst (destConst trm) in
-       let tr_constr env sigma = subst_globals subst %> desugar_constr env sigma in
-       let c = lookup_constant const in
-       if Globset.mem (ConstRef const) opaques then
-         subst
-       else
-         let _, const' = transform_constant ident tr_constr c in
-         Globmap.add (ConstRef const) (ConstRef const') subst
-     in
-     let consts = List.rev (get_all_consts m_consts) in
-     let init () = List.fold_left include_constant Globmap.empty consts in
-     ignore (transform_module_structure ~init ~opaques ident desugar_constr m)
+     in get_all_consts cs
+
+(*
+ * Translate fix and match expressions into eliminations, as in
+ * do_desugar_constant, compositionally throughout a whole module.
+ *
+ * The optional argument is a list of constants to ignore in the translated
+ * module. Otherwise, by default, this preprocesses all recursive subterms.
+ * (By Nate Yazdani, from DEVOID, with later additions by Talia Ringer)
+ *)
+let do_desugar_module ?(opaques=[]) ident mod_ref =
+  let m = lookup_module (locate_module (qualid_of_reference mod_ref)) in
+  let env = Global.env () in
+  let opaques = initialize_opaque_set opaques in
+  let include_constant subst trm =
+    let glob = Globnames.global_of_constr trm in
+    let glob_ident = Nametab.basename_of_global glob in
+    let dirpath = Nametab.dirpath_of_global glob in
+    let prefixes = String.split_on_char '.' (DirPath.to_string dirpath) in
+    let suffix = Id.to_string glob_ident in
+    let ident = Id.of_string (String.concat "_" (snoc suffix prefixes)) in
+    let const = fst (destConst trm) in
+    let tr_constr env sigma = subst_globals subst %> desugar_constr env sigma in
+    let c = lookup_constant const in
+    if Globset.mem (ConstRef const) opaques then
+      subst
+    else
+      let _, const' = transform_constant ident tr_constr c in
+      Globmap.add (ConstRef const) (ConstRef const') subst
+  in
+  let consts = List.rev (all_transitive_constants env m) in
+  let init () = List.fold_left include_constant Globmap.empty consts in
+  ignore (transform_module_structure ~init ~opaques ident desugar_constr m)
 
 (* --- Commands --- *)
 
