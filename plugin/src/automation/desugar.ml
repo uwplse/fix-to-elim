@@ -329,5 +329,5 @@ let desugar_constr env sigma trm =
       trm
   in
   let sigma, trm' = aux env (sigma, trm) in
-  let _, _ = infer_type env sigma trm' in
+  let _ = Typing.e_type_of env (ref sigma) (EConstr.of_constr trm') in
   sigma, trm'
