@@ -103,8 +103,6 @@ let do_desugar_module ?(opaques=[]) ident mod_ref =
          Globmap.add (ConstRef const) (ConstRef const') subst
      in
      let consts = List.rev (get_all_consts m_consts) in
-     let open Printing in
-     debug_terms env consts "consts";
      let init () = List.fold_left include_constant Globmap.empty consts in
      ignore (transform_module_structure ~init ~opaques ident desugar_constr m)
 
