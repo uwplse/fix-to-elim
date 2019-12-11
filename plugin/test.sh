@@ -3,3 +3,5 @@ coqc coq/Preprocess.v
 coqc coq/PreprocessModule.v
 coqc coq/Type.v
 coqc coq/Axiom.v
+coqc coq/Alias.v
+

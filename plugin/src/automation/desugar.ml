@@ -32,19 +32,31 @@ open Hofs
  *)
 
 (*
- * Extract the components of an inductive type: the (universe-instantiated)
+ * Extract the components of an inductive type
  *)
-let decompose_indvect ind_type =
-  let pind, args = decompose_appvect ind_type |> on_fst destInd in
+let decompose_indvect env ind_type sigma =
+  let t = first_fun ind_type in
+  let args = unfold_args ind_type in
+  let t_red = unwrap_definition env t in
+  let sigma, ind_type = reduce_term env sigma (mkAppl (t_red, args)) in
+  let pind, args =
+    try
+      decompose_appvect ind_type |> on_fst destInd
+    with _ ->
+      failwith "type passed to decompose_indvect must be an inductive type"
+  in
   let nparam = inductive_nparams (out_punivs pind) in
   let params, indices = Array.chop nparam args in
-  pind, params, indices
+  sigma, (pind, params, indices)
 
 (*
  * Same as decompose_indvect but converts the result arrays into lists.
  *)
-let decompose_ind ind_type =
-  decompose_indvect ind_type |> on_pi2 Array.to_list |> on_pi3 Array.to_list
+let decompose_ind env ind_type =
+  bind
+    (decompose_indvect env ind_type)
+    (fun arrs ->
+      ret (on_pi3 Array.to_list (on_pi2 Array.to_list arrs)))
                                                                
 (*
  * Construct a relative context, consisting of only local assumptions,
@@ -229,7 +241,7 @@ let desugar_fixpoint env sigma fix_pos fix_name fix_type fix_term =
   let _, fix_term = decompose_lam_n_zeta nb fix_term in
   (* Gather information on the inductive type for recursion/elimination *)
   let ind_name, ind_type = Rel.lookup 1 fix_ctxt |> pair rel_name rel_type in
-  let pind, params, indices = decompose_ind (shift ind_type) in
+  let sigma, (pind, params, indices) = decompose_ind env (shift ind_type) sigma in
   let ind_fam = make_ind_family (pind, params) in
   let env = Environ.push_rel_context fix_ctxt env in (* for eventual wrapper *)
   let rec_ctxt, rec_args = (* quantify the inductive type like an eliminator *)
@@ -276,7 +288,7 @@ let desugar_fixpoint env sigma fix_pos fix_name fix_type fix_term =
 let desugar_match env sigma info pred discr cases =
   let typ = lambda_to_prod pred in
   let sigma, discr_typ = reduce_type_using whd env sigma discr in
-  let pind, params, indices = decompose_indvect discr_typ in
+  let sigma, (pind, params, indices) = decompose_indvect env discr_typ sigma in
   let ind_fam = make_ind_family (pind, Array.to_list params) in
   let sigma, elim_head = configure_eliminator env sigma ind_fam typ in
   let premises =
