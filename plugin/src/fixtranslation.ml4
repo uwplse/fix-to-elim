@@ -93,11 +93,11 @@ let do_desugar_module ?(opaques=[]) ident mod_ref =
   let include_constant subst trm =
     let glob = Globnames.global_of_constr trm in
     let glob_ident = Nametab.basename_of_global glob in
-    let dirpath = Nametab.dirpath_of_global glob in
-    let prefixes = String.split_on_char '.' (DirPath.to_string dirpath) in
+    let dirpath = DirPath.to_string (Nametab.dirpath_of_global glob) in
+    let prefixes = String.split_on_char '.' dirpath in
     let suffix = Id.to_string glob_ident in
     let ident = Id.of_string (String.concat "_" (snoc suffix prefixes)) in
-    Feedback.msg_notice (Pp.str (Printf.sprintf "Transforming dependency %s" suffix));
+    Feedback.msg_notice (Pp.str (Printf.sprintf "Transforming dependency %s.%s" dirpath suffix));
     let const = fst (destConst trm) in
     let tr_constr env sigma = subst_globals subst %> desugar_constr env sigma in
     let c = lookup_constant const in
