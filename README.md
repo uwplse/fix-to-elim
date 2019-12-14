@@ -17,7 +17,9 @@ For examples of using this command directly, see the [coq](/plugin/coq) director
 
 Error messaging for this plugin is really difficult. Here are some quick guidelines:
 
-1. If you get an error message about not being able to find an induction principle `Foo_ind`, `Foo_rec`, or `Foo_rect`,
+### Errors about Induction Principles
+
+If you get an error message about not being able to find an induction principle `Foo_ind`, `Foo_rec`, or `Foo_rect`,
 you need to tell Coq to define an induction principle for that type. First, run this command:
 
 ```
@@ -42,7 +44,9 @@ Scheme Induction for Foo Sort Type.
 
 This will tell Coq to generate induction principles. See [this command](https://coq.inria.fr/refman/user-extensions/proof-schemes.html) for more information.
 
-2. If a module you are processing includes or depends on an unsupported term, like one that uses mutual recursion,
+### Handling Unsupported Terms
+
+If a module you are processing includes or depends on an unsupported term, like one that uses mutual recursion,
 you can use the `opaque` option to tell `Preprocess Module` to ignore it. For example, if you want to ignore `Baz.bar` when preprocessing the module `Baz`, you can write this:
 
 ```
@@ -52,11 +56,15 @@ Preprocess Module Baz as Baz' { opaque Baz.bar }.
 Do note, however, that you may run into issues with later definitions that depend on the definitions you ignore.
 So you may have to list several definitions to treat as opaque.
 
-3. If you encounter an issue you can't solve, or you don't know why something isn't working, then please look
+### Working around Bugs
+
+If you encounter an issue you can't solve, or you don't know why something isn't working, then please look
 at the output up to that error. It will print all of the definitions up until the one that it failed to process.
 You can then try to set that as opaque and continue, if you do not need it to use eliminators later on.
 
-4. If you can't set a term as opaque or don't know why it isn't working but would like for it to work, then 
+### Reporting Bugs
+
+If you can't set a term as opaque or don't know why it isn't working but would like for it to work, then 
 when you report a bug, please include enough information to reproduce the bug, as well as the name of the
 last definition `Preprocess Module` tries before failing. If you see a type error, please also include the
 type error.
