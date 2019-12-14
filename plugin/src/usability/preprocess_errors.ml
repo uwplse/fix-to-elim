@@ -28,9 +28,10 @@ let err_type env sigma err =
      explain_pretype_error env sigma err;
      Pp.fnl ();
      Pp.fnl ();
-     Pp.str "This is often due to one of two issues:\n";
-     Pp.str "1. the term refers to an earlier term that is opaque, or\n";
-     Pp.str "2. you need to generate a different induction principle."]
+     Pp.str "This is often due to one of three issues:\n";
+     Pp.str "1. the term refers to an earlier term that is opaque,\n";
+     Pp.str "2. you need to generate a different induction principle, or\n";
+     Pp.str "3. the term uses fancier recursion than what we support."]
 
 (* --- Possible workaround suggestions --- *)
 
