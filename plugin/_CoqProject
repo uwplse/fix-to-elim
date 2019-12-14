@@ -1,4 +1,5 @@
 -I src
+-I src/usability
 -I src/components/abstraction
 -I src/automation
 -I src/coq-plugin-lib/src/utilities
@@ -69,6 +70,9 @@ src/coq-plugin-lib/src/coq/logicutils/transformation/transform.ml
 
 src/coq-plugin-lib/src/coq/devutils/printing.mli
 src/coq-plugin-lib/src/coq/devutils/printing.ml
+
+src/usability/preprocess_errors.mli
+src/usability/preprocess_errors.ml
 
 src/components/abstraction/abstraction.mli
 src/components/abstraction/abstraction.ml

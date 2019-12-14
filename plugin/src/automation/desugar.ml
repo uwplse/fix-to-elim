@@ -10,7 +10,6 @@ open Context
 open Term
 open Constr
 open Inductiveops
-open CErrors
 open Abstraction
 open Inference
 open Contextutils
@@ -23,7 +22,9 @@ open Debruijn
 open Reducers
 open Stateutils
 open Hofs
-
+open Pretype_errors
+open Preprocess_errors
+       
 (* --- Utilities for inductive types --- *)
 
 (*
@@ -188,7 +189,7 @@ let configure_eliminator env sigma ind_fam typ =
     if Sorts.family_equal ind_sort Sorts.InProp then
       List.tl typ_ctxt, unshift typ_body
     else
-      typ_ctxt, typ_body
+       typ_ctxt, typ_body
   in
   let sigma, elim =
     let typ_env = Environ.push_rel_context typ_ctxt env in
@@ -325,9 +326,9 @@ let desugar_constr env sigma trm =
              env
              (desugar_fixpoint env sigma fix_pos fix_name fix_type fix_term)
         | Fix _ ->
-           user_err ~hdr:"desugar" (Pp.str "mutual recursion not supported")
+           user_err "desugar" err_mutual_recursion [try_opaque] [cool_feature]
         | CoFix _ ->
-           user_err ~hdr:"desugar" (Pp.str "co-recursion not supported")
+           user_err "desugar" err_corecursion [try_opaque] [cool_feature]
         | Case (info, pred, discr, cases) ->
            aux
              env
@@ -341,5 +342,12 @@ let desugar_constr env sigma trm =
       trm
   in
   let sigma, trm' = aux env (sigma, trm) in
-  let _ = Typing.e_type_of env (ref sigma) (EConstr.of_constr trm') in
-  sigma, trm'
+  try
+    let _ = Typing.e_type_of env (ref sigma) (EConstr.of_constr trm') in
+    sigma, trm'
+  with PretypeError (env, sigma, err) ->
+    user_err
+      "desugar"
+      (err_type env sigma err)
+      [try_opaque; try_change_ind]
+      [problematic]

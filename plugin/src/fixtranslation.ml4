@@ -14,6 +14,7 @@ open Constr
 open Utilities
 open Envutils
 open Declarations
+open Preprocess_errors
 
 module Globmap = Globnames.Refmap
 module Globset = Globnames.Refset
@@ -38,8 +39,17 @@ let do_desugar_constant ident const_ref =
 let initialize_opaque_set opaques =
   List.fold_left
     (fun s r ->
-      let c = ConstRef (locate_constant (qualid_of_reference r)) in
-      Globset.add c s)
+      let id = qualid_of_reference r in
+      let c =
+        try
+          ConstRef (locate_constant id)
+        with Not_found ->
+          user_err
+            "initialize_opaque_set"
+            (err_opaque_not_constant id)
+            [try_check_typos; try_fully_qualify; try_alias]
+            [cool_feature; problematic]
+      in Globset.add c s)
     Globset.empty
     opaques
 
@@ -50,7 +60,11 @@ let all_transitive_constants env m =
   let path = m.mod_mp in
   match m.mod_type with
   | MoreFunctor _ ->
-     CErrors.user_err (Pp.str "Preprocessing functors is not yet supported")
+     user_err
+       "all_transitive_constants"
+       err_functor
+       [try_defs_only]
+       [cool_feature; problematic]
   | NoFunctor fields ->
      let cs = List.map (fun (l, _) -> mkConst (Constant.make2 path l)) fields in
      let refs = List.map (fun c -> ConstRef (fst (destConst c))) cs in
