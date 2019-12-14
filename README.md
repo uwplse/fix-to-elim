@@ -87,7 +87,8 @@ type error.
 
 ## Contributors
 
-The vast majority of this code was written by [Nate Yazdani](https://github.com/nateyazdani). Talia Ringer mostly ported it to a plugin and wrote a lot of library functions. Github history is not accurate here.
+The original plugin was written by [Nate Yazdani](https://github.com/nateyazdani). Talia Ringer mostly ported it to a plugin and wrote a lot of library functions, then fixed some bugs later and added better error messaging and so on.
+Github history is not accurate here.
 
 ## Licensing
 
