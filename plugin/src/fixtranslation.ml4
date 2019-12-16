@@ -141,7 +141,7 @@ let do_desugar_module ?(opaques=[]) ident mod_ref =
     if Globset.mem (ConstRef const) opaques then
       subst
     else
-      let _ = Feedback.msg_notice (Pp.str (Printf.sprintf "Transforming dependency %s.%s" dirpath suffix)) in
+      let _ = Feedback.msg_info (Pp.str (Printf.sprintf "Transforming dependency %s.%s" dirpath suffix)) in
       try
         let _, const' = transform_constant ident tr_constr c in
         Globmap.add (ConstRef const) (ConstRef const') subst
