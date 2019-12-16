@@ -6,4 +6,10 @@ Axiom A : True.
 
 End HasAxiom.
 
-Preprocess Module HasAxiom as HasAxiom' {opaque HasAxiom.A}.
+Module HasAxiom'.
+
+Definition f := HasAxiom.A.
+
+End HasAxiom'.
+
+Preprocess Module HasAxiom' as HasAxiom'' {opaque HasAxiom.A}.

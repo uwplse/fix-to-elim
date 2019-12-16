@@ -94,6 +94,7 @@ let all_transitive_constants env m =
             with _ ->
               h
           in
+          let seen = Globset.add (ConstRef (fst (destConst h))) seen in
           let seen_hd = ref seen in
           let h_consts =
             all_const_subterms
