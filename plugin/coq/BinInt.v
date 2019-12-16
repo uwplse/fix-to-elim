@@ -11,13 +11,9 @@ Scheme Minimality for Coq.Classes.RelationClasses.PER Sort Prop.
 
 Preprocess Module Coq.ZArith.BinInt as BinInt'
   { opaque
-      Coq.PArith.BinPos.Pos.add_reg_r 
-      Coq.PArith.BinPos.Pos.add_no_neutral
-      Coq.PArith.BinPos.Pos.compare_sub_mask  
-      Coq.PArith.BinPos.Pos.sub_mask_carry_spec 
-      Coq.PArith.BinPos.Pos.sub_mask_carry 
-      Coq.PArith.BinPos.Pos.add_carry 
-      Coq.PArith.BinPos.Pos.sub_mask 
-      Coq.PArith.BinPos.Pos.peano_rect 
-      Coq.PArith.BinPos.Pos.add
+      Coq.Init.Logic.eq_ind_r
+      Coq.Init.Logic.eq_ind
+      Coq.Init.Logic.eq_sym
+      Coq.ZArith.BinInt.Z.add
+      Coq.ZArith.BinInt.Z.mul
   }.

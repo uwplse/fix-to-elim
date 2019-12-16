@@ -52,7 +52,23 @@ let initialize_opaque_set opaques =
       in Globset.add c s)
     Globset.empty
     opaques
-
+ 
+(*
+ * Utility function for lists of terms
+ *)
+let append_dedupe l1 l2 =
+  let l1_globs =
+    List.fold_right
+      (fun t -> Globset.add (ConstRef (fst (destConst t))))
+      l1
+      Globset.empty
+  in
+  List.append
+    l1
+    (List.filter
+       (fun t -> not (Globset.mem (ConstRef (fst (destConst t))) l1_globs))
+       l2)
+    
 (*
  * Get all constants a module refers to transitively
  *)
@@ -68,29 +84,37 @@ let all_transitive_constants env m =
   | NoFunctor fields ->
      let cs = List.map (fun (l, _) -> mkConst (Constant.make2 path l)) fields in
      let refs = List.map (fun c -> ConstRef (fst (destConst c))) cs in
-     let seen = ref (List.fold_right Globset.add refs Globset.empty) in
-     let rec get_all_consts consts =
+     let in_module = List.fold_right Globset.add refs Globset.empty in
+     let rec get_all_consts consts seen =
        match consts with
        | h :: tl ->
+          let h_delta =
+            try
+              lookup_definition env h
+            with _ ->
+              h
+          in
+          let seen_hd = ref seen in
           let h_consts =
             all_const_subterms
               (fun _ t ->
                 let c = ConstRef (fst (destConst t)) in
-                if Globset.mem c (!seen) then
+                if Globset.mem c (!seen_hd) then
                   false
                 else
-                  let s = !seen in
-                  seen := Globset.add c s; 
+                  let s = !seen_hd in
+                  seen_hd := Globset.add c s;
                   true)
               (fun _ -> ())
               ()
-              (unwrap_definition env h)
+              h_delta
           in
-          let h_consts_rec = get_all_consts h_consts in
-          List.append h_consts_rec (List.append h_consts (get_all_consts tl))
+          append_dedupe
+            (append_dedupe (get_all_consts h_consts seen) h_consts)
+            (get_all_consts tl (!seen_hd))
        | _ ->
           [] 
-     in get_all_consts cs
+     in get_all_consts cs in_module
 
 (*
  * Translate fix and match expressions into eliminations, as in
@@ -111,17 +135,21 @@ let do_desugar_module ?(opaques=[]) ident mod_ref =
     let prefixes = String.split_on_char '.' dirpath in
     let suffix = Id.to_string glob_ident in
     let ident = Id.of_string (String.concat "_" (snoc suffix prefixes)) in
-    Feedback.msg_notice (Pp.str (Printf.sprintf "Transforming dependency %s.%s" dirpath suffix));
     let const = fst (destConst trm) in
     let tr_constr env sigma = subst_globals subst %> desugar_constr env sigma in
     let c = lookup_constant const in
     if Globset.mem (ConstRef const) opaques then
       subst
     else
-      let _, const' = transform_constant ident tr_constr c in
-      Globmap.add (ConstRef const) (ConstRef const') subst
+      let _ = Feedback.msg_notice (Pp.str (Printf.sprintf "Transforming dependency %s.%s" dirpath suffix)) in
+      try
+        let _, const' = transform_constant ident tr_constr c in
+        Globmap.add (ConstRef const) (ConstRef const') subst
+      with _ ->
+        let _ = Feedback.msg_warning (Pp.str "Transformation failed, skipping dependency") in
+        subst
   in
-  let consts = List.rev (all_transitive_constants env m) in
+  let consts = all_transitive_constants env m in
   let init () = List.fold_left include_constant Globmap.empty consts in
   ignore (transform_module_structure ~init ~opaques ident desugar_constr m)
 
