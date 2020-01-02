@@ -6,3 +6,4 @@ coqc coq/Axiom.v
 coqc coq/Alias.v
 coqc coq/BinInt.v
 coqc coq/customfst.v
+coqc coq/Record.v
