@@ -15,10 +15,9 @@ let err_functor = Pp.str "Functors are not supported."
                          
 let err_opaque_not_constant qid =
   Pp.seq
-    [Pp.str "The identifier ";
+    [Pp.str "Cannot find a constant or module corresponding to the identifier ";
      Libnames.pr_qualid qid;
-     Pp.str " that was passed to the { opaque ... } option is not a constant,";
-     Pp.str " or does not exist."]
+     Pp.str " that was passed to the { opaque ... } option."]
 
 let err_type env sigma err =
   Pp.seq
