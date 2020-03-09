@@ -15,6 +15,7 @@ open Utilities
 open Envutils
 open Declarations
 open Preprocess_errors
+open Options
 
 module Globmap = Globnames.Refmap
 module Globset = Globnames.Refset
@@ -35,9 +36,11 @@ let do_desugar_constant ident const_ref =
     end
 
 (*
- * Initialize the set of opaque constants and modules to ignore.
+ * Initialize the set of opaque constants and modules to ignore,
+ * or transparent constants and modules not to ignore, depending on
+ * the option.
  *)
-let initialize_opaque_set opaques =
+let initialize_opaque_set exceptions =
   List.fold_left
     (fun (consts, mods) r ->
       let id = qualid_of_reference r in
@@ -46,16 +49,15 @@ let initialize_opaque_set opaques =
       with Not_found ->
         try
           consts, DPset.add (ModPath.dp (locate_module id)) mods
-        with
-          Not_found ->
-            user_err
-              "initialize_opaque_set"
-              (err_opaque_not_constant id)
-              [try_check_typos; try_fully_qualify; try_alias]
-              [cool_feature; problematic])
+        with Not_found ->
+          user_err
+            "initialize_opaque_set"
+            (err_opaque_not_constant id)
+            [try_check_typos; try_fully_qualify; try_alias]
+            [cool_feature; problematic])
     (Globset.empty, DPset.empty)
-    opaques
- 
+    exceptions
+
 (*
  * Utility function for lists of terms
  *)
@@ -77,7 +79,7 @@ let append_dedupe l1 l2 =
  * Do not recurse into opaque modules (but do not yet filter out terms from
  * those modules).
  *)
-let all_transitive_constants env m opaque_mods =
+let all_transitive_constants env m exceptions exception_mods =
   let path = m.mod_mp in
   match m.mod_type with
   | MoreFunctor _ ->
@@ -103,25 +105,39 @@ let all_transitive_constants env m opaque_mods =
           let seen = Globset.add c seen in
           let seen_hd = ref seen in
           let h_consts =
-            let skip =
+            let add_h, recurse =
               try
                 let dirpath = Nametab.dirpath_of_global c in
-                DPset.mem dirpath opaque_mods
+                if is_default_opaque () then
+                  if DPset.mem dirpath exception_mods then
+                    true, true
+                  else if Globset.mem c exceptions then
+                    true, true
+                  else
+                    false, true
+                else
+                  if DPset.mem dirpath exception_mods then
+                    false, false
+                  else
+                    true, true
               with _ ->
-                false
+                true, true
             in
-            if skip then
-              []  
+            if not (add_h || recurse) then
+              []
             else
               all_const_subterms
                 (fun _ t ->
-                  let c = ConstRef (fst (destConst t)) in
-                  if Globset.mem c (!seen_hd) then
+                  if (not add_h) && equal h_delta t then
                     false
                   else
-                    let s = !seen_hd in
-                    seen_hd := Globset.add c s;
-                    true)
+                    let c = ConstRef (fst (destConst t)) in
+                    if Globset.mem c (!seen_hd) then
+                      false
+                    else
+                      let s = !seen_hd in
+                      seen_hd := Globset.add c s;
+                      true)
                 (fun _ -> ())
                 ()
                 h_delta
@@ -141,10 +157,18 @@ let all_transitive_constants env m opaque_mods =
  * module. Otherwise, by default, this preprocesses all recursive subterms.
  * (By Nate Yazdani, from DEVOID, with later additions by Talia Ringer)
  *)
-let do_desugar_module ?(opaques=[]) ident mod_ref =
+let do_desugar_module ?(opaques=[]) ?(transparents=[]) ident mod_ref =
   let m = lookup_module (locate_module (qualid_of_reference mod_ref)) in
   let env = Global.env () in
   let opaques, opaque_mods = initialize_opaque_set opaques in
+  let transparents, transparent_mods = initialize_opaque_set transparents in 
+  let default_opaque = is_default_opaque () in
+  let exceptions, exception_mods =
+    if default_opaque then
+      transparents, transparent_mods
+    else
+      opaques, opaque_mods
+  in  
   let include_constant subst trm =
     let glob = Globnames.global_of_constr trm in
     let glob_ident = Nametab.basename_of_global glob in
@@ -156,7 +180,8 @@ let do_desugar_module ?(opaques=[]) ident mod_ref =
     let const = fst (destConst trm) in
     let tr_constr env sigma = subst_globals subst %> desugar_constr env sigma in
     let c = lookup_constant const in
-    if Globset.mem (ConstRef const) opaques || DPset.mem dp opaque_mods then
+    let is_exception = Globset.mem (ConstRef const) exceptions || DPset.mem dp exception_mods in
+    if is_exception <> default_opaque then
       subst
     else
       let _ = Feedback.msg_info (Pp.str (Printf.sprintf "Transforming dependency %s.%s" dirpath suffix)) in
@@ -167,7 +192,7 @@ let do_desugar_module ?(opaques=[]) ident mod_ref =
         let _ = Feedback.msg_warning (Pp.str "Transformation failed, skipping dependency") in
         subst
   in
-  let consts = all_transitive_constants env m opaque_mods in
+  let consts = all_transitive_constants env m exceptions exception_mods in
   let init () = List.fold_left include_constant Globmap.empty consts in
   ignore (transform_module_structure ~init ~opaques ident desugar_constr m)
 
@@ -181,4 +206,6 @@ VERNAC COMMAND EXTEND TranslateMatch CLASSIFIED AS SIDEFF
   [ do_desugar_module id mod_ref ]
 | [ "Preprocess" "Module" reference(mod_ref) "as" ident(id) "{" "opaque" ne_reference_list(opaq_refs) "}" ] ->
   [ do_desugar_module ~opaques:opaq_refs id mod_ref ]
+| [ "Preprocess" "Module" reference(mod_ref) "as" ident(id) "{" "transparent" ne_reference_list(transp_refs) "}" ] ->
+  [ do_desugar_module ~transparents:transp_refs id mod_ref ]
 END

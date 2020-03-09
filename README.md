@@ -62,6 +62,24 @@ Preprocess Module Baz as Baz' { opaque Bar }.
 
 Do note, however, that you may run into issues with later definitions that depend on the definitions you ignore.
 So you may have to list several definitions to treat as opaque.
+See [PreprocessModule.v](coq/PreprocessModule.v) for an example of this.
+
+If you'd rather have `Preprocess Module` treat all dependencies as opaque by default, you can set the option:
+
+```
+Set Preprocess default opaque.
+```
+
+You can then whitelist using `transparent` instead of `opaque`, for example:
+
+```
+Preprocess Module List as List' { transparent
+  (* list append and induction *)
+  Coq.Init.Datatypes
+}.
+```
+
+See [DefaultOpaque.v](coq/DefaultOpaque.v) for an example of this.
 
 ### Working around Bugs
 
@@ -87,8 +105,10 @@ type error.
   - [theories](/plugin/theories): Coq theories to load plugin
   - [src](/plugin/src): Main source directory
     - [fixtoelim.mlpack](/plugin/src/fixtoelim.mlpack)
+    - [options.ml](/plugin/src/options.ml) and [options.mli](/plugin/src/options.mli): Options for **Preprocess**
     - [fixtranslation.ml4](/plugin/src/fixtranslation.ml4): **Preprocess** top-level
     - [automation](/plugin/src/automation): **Preprocess** implementation
+    - [usability](/plugin/src/usability): Error messages and other usability bits and pieces
     - [components](/plugin/src/components): Components in the style of [PUMPKIN PATCH](https://github.com/uwplse/PUMPKIN-PATCH)
     - [coq-plugin-lib](/plugin/src/coq-plugin-lib): [Coq plugin library](https://github.com/uwplse/coq-plugin-lib)
 

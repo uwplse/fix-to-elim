@@ -83,6 +83,9 @@ src/components/abstraction/abstraction.ml
 src/automation/desugar.mli
 src/automation/desugar.ml
 
+src/options.mli
+src/options.ml
+
 src/fixtranslation.ml4
 src/fixtoelim.mlpack
 

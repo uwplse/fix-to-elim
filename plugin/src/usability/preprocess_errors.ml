@@ -17,7 +17,7 @@ let err_opaque_not_constant qid =
   Pp.seq
     [Pp.str "Cannot find a constant or module corresponding to the identifier ";
      Libnames.pr_qualid qid;
-     Pp.str " that was passed to the { opaque ... } option."]
+     Pp.str " that was passed to { opaque ... } or { transparent ... }."]
 
 let err_type env sigma err =
   Pp.seq
