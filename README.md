@@ -47,10 +47,17 @@ This will tell Coq to generate induction principles. See [this command](https://
 ### Handling Unsupported Terms
 
 If a module you are processing includes or depends on an unsupported term, like one that uses mutual recursion,
-you can use the `opaque` option to tell `Preprocess Module` to ignore it. For example, if you want to ignore `Baz.bar` when preprocessing the module `Baz`, you can write this:
+you can use the `opaque` option to tell `Preprocess Module` to ignore it. For example, if you want to ignore `Bar.bar` and
+`Baz.baz` when preprocessing the module `Baz`, you can write this:
 
 ```
-Preprocess Module Baz as Baz' { opaque Baz.bar }.
+Preprocess Module Baz as Baz' { opaque Bar.bar Baz.baz }.
+```
+
+You can also tell `Preprocess Module` to ignore entire module, for example all definitions from the module `Bar` and its dependencies:
+
+```
+Preprocess Module Baz as Baz' { opaque Bar }.
 ```
 
 Do note, however, that you may run into issues with later definitions that depend on the definitions you ignore.
