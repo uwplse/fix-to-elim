@@ -1,12 +1,6 @@
 Require Import Fixtranslation.Fixtoelim.
 Require List.
 
-(*
- * Test for the Preprocess command to convert
- * fixpoints to induction principles. From
- * DEVOID, by Nate Yazdani.
- *)
-
 Open Scope list_scope.
 
 Inductive vector (A : Type) : nat -> Type :=

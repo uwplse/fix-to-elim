@@ -21,13 +21,6 @@ module Globmap = Globnames.Refmap
 module Globset = Globnames.Refset
 module DPset = Set.Make(DirPath)
 
-(*
- * Translate each fix or match subterm into an equivalent application of an
- * eliminator, defining the new term with the given name.
- *
- * Mutual fix or cofix subterms are not supported.
- * (By Nate Yazdani, from DEVOID)
- *)
 let do_desugar_constant ident const_ref =
   ignore
     begin
@@ -149,14 +142,6 @@ let all_transitive_constants env m exceptions exception_mods =
           [] 
      in get_all_consts cs in_module
 
-(*
- * Translate fix and match expressions into eliminations, as in
- * do_desugar_constant, compositionally throughout a whole module.
- *
- * The optional argument is a list of constants to ignore in the translated
- * module. Otherwise, by default, this preprocesses all recursive subterms.
- * (By Nate Yazdani, from DEVOID, with later additions by Talia Ringer)
- *)
 let do_desugar_module ?(opaques=[]) ?(transparents=[]) ident mod_ref =
   let m = lookup_module (locate_module (qualid_of_reference mod_ref)) in
   let env = Global.env () in
