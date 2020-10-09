@@ -1,8 +1,3 @@
-(*
- * Translation of fixpoints and match statements to induction principles.
- * By Nate Yazdani, taken from the DEVOID code.
- *)
-
 open Util
 open Names
 open Univ
@@ -309,11 +304,6 @@ let desugar_match env sigma info pred discr cases =
  *
  * Mutual recursion, co-recursion, and universe polymorphism are not supported.
  *
- * Talia: The combination of map_term_env_if and a recursive call basically says
- * that we continue to apply the condition to subterms even when the predicate
- * is successful. At some point, it may make sense to move this HOF into
- * the library, too. But using map_term_env_if saves us from all of the
- * boilerplate around threading things through terms with evars otherwise.
  *)
 let desugar_constr env sigma trm =
   let rec aux env (sigma, trm) =

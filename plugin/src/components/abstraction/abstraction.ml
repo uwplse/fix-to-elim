@@ -1,13 +1,6 @@
 open Constr
 open Apputils
 
-(* 
- * Replace all occurrences of the first term in the second term with Rel 1,
- * lifting de Bruijn indices as needed. The notion of term equality is modulo
- * alpha, casts, application grouping, and universes.
- *
- * By Nate Yazdani, from DEVOID.
- *)
 let abstract_subterm sub term =
   (* Allocate a binding slot for the abstracted subterm *)
   let sub = Vars.lift 1 sub in
