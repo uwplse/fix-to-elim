@@ -1,6 +1,6 @@
 This repository contains the `Preprocess` command, which does simple match and fixpoint to eliminator (induction principle) translation for certain terms, as described in the [DEVOID paper](http://tlringer.github.io/pdf/ornpaper.pdf). This command is a part of the [PUMPKIN PATCH](https://github.com/uwplse/PUMPKIN-PATCH) plugin suite. Here it exists as a standalone plugin so that others can build on it as desired.
 
-This plugin depends on Coq 8.8 and our [Coq plugin library](https://github.com/uwplse/coq-plugin-lib).
+This plugin depends on Coq 8.9.1 and our [Coq plugin library](https://github.com/uwplse/coq-plugin-lib).
 The library is included automatically.
 To build the standalone plugin, run:
 
