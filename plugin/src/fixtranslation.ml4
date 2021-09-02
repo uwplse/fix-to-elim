@@ -31,7 +31,7 @@ module DPset = Set.Make(DirPath)
 let do_desugar_constant ident const_ref =
   ignore
     begin
-      qualid_of_reference const_ref |> Nametab.locate_constant |>
+      Nametab.locate_constant const_ref |>
       Global.lookup_constant |> transform_constant ident desugar_constr
     end
 
@@ -42,8 +42,7 @@ let do_desugar_constant ident const_ref =
  *)
 let initialize_opaque_set exceptions =
   List.fold_left
-    (fun (consts, mods) r ->
-      let id = qualid_of_reference r in
+    (fun (consts, mods) id ->
       try
         Globset.add (ConstRef (locate_constant id)) consts, mods
       with Not_found ->
@@ -90,7 +89,7 @@ let all_transitive_constants env m exceptions exception_mods =
        [cool_feature; problematic]
   | NoFunctor fields ->
      let cs = List.map (fun (l, _) -> mkConst (Constant.make2 path l)) fields in
-     let refs = List.map (fun c -> ConstRef (fst (destConst c))) cs in
+     let refs = List.map (fun c -> Globnames.ConstRef (fst (destConst c))) cs in
      let in_module = List.fold_right Globset.add refs Globset.empty in
      let rec get_all_consts consts seen =
        match consts with
@@ -101,7 +100,7 @@ let all_transitive_constants env m exceptions exception_mods =
             with _ ->
               h
           in
-          let c = ConstRef (fst (destConst h)) in
+          let c = Globnames.ConstRef (fst (destConst h)) in
           let seen = Globset.add c seen in
           let seen_hd = ref seen in
           let h_consts =
@@ -131,7 +130,7 @@ let all_transitive_constants env m exceptions exception_mods =
                   if (not add_h) && equal h_delta t then
                     false
                   else
-                    let c = ConstRef (fst (destConst t)) in
+                    let c = Globnames.ConstRef (fst (destConst t)) in
                     if Globset.mem c (!seen_hd) then
                       false
                     else
@@ -158,7 +157,7 @@ let all_transitive_constants env m exceptions exception_mods =
  * (By Nate Yazdani, from DEVOID, with later additions by Talia Ringer)
  *)
 let do_desugar_module ?(opaques=[]) ?(transparents=[]) ident mod_ref =
-  let m = lookup_module (locate_module (qualid_of_reference mod_ref)) in
+  let m = lookup_module (locate_module mod_ref) in
   let env = Global.env () in
   let opaques, opaque_mods = initialize_opaque_set opaques in
   let transparents, transparent_mods = initialize_opaque_set transparents in 
@@ -180,14 +179,14 @@ let do_desugar_module ?(opaques=[]) ?(transparents=[]) ident mod_ref =
     let const = fst (destConst trm) in
     let tr_constr env sigma = subst_globals subst %> desugar_constr env sigma in
     let c = lookup_constant const in
-    let is_exception = Globset.mem (ConstRef const) exceptions || DPset.mem dp exception_mods in
+    let is_exception = Globset.mem (Globnames.ConstRef const) exceptions || DPset.mem dp exception_mods in
     if is_exception <> default_opaque then
       subst
     else
       let _ = Feedback.msg_info (Pp.str (Printf.sprintf "Transforming dependency %s.%s" dirpath suffix)) in
       try
         let _, const' = transform_constant ident tr_constr c in
-        Globmap.add (ConstRef const) (ConstRef const') subst
+        Globmap.add (Globnames.ConstRef const) (Globnames.ConstRef const') subst
       with _ ->
         let _ = Feedback.msg_warning (Pp.str "Transformation failed, skipping dependency") in
         subst
