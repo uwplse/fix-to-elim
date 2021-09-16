@@ -1,0 +1,10 @@
+(library
+  (name usability)
+  (public_name fix-to-elim.usability)
+  (libraries
+    coq-plugin-lib.utilities
+    coq.vernac
+    coq.pretyping
+    coq.engine
+    coq.kernel)
+  (wrapped false))

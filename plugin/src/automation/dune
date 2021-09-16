@@ -1,0 +1,10 @@
+(library
+  (name automation)
+  (public_name fix-to-elim.automation)
+  (libraries
+    coq-plugin-lib.transformation
+    fix-to-elim.abstraction
+    fix-to-elim.usability
+    coq.engine
+    coq.kernel)
+  (wrapped false))

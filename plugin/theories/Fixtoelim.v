@@ -1,1 +1,1 @@
-Declare ML Module "fixtoelim".
+Declare ML Module "fixtoelim_full_plugin".

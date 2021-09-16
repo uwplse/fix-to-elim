@@ -1,0 +1,8 @@
+(library
+  (name abstraction)
+  (public_name fix-to-elim.abstraction)
+  (libraries
+    coq-plugin-lib.termutils
+    coq.engine
+    coq.kernel)
+  (wrapped false))

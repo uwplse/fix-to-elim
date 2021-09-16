@@ -1,0 +1,7 @@
+(library
+  (name options)
+  (public_name fix-to-elim.options)
+  (libraries
+    coq.engine
+    coq.kernel)
+  (wrapped false))

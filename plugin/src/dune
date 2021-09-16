@@ -1,0 +1,31 @@
+(library
+ (name fixtoelim)
+ (public_name fix-to-elim.plugin)
+ (synopsis "Fixpoint to Eliminator Translation")
+ (flags :standard -w -27 -warn-error -A)       ; CoqPP codes requires this
+ (modules ("fixtranslation"))
+ (libraries
+   coq.vernac                      ; needed for vernac extend
+   coq-serapi.serlib
+   fix-to-elim.options
+   fix-to-elim.abstraction
+   fix-to-elim.usability
+   fix-to-elim.automation
+))
+
+(rule
+  (targets fixtoelim_full_plugin.cmxs)
+  (action (run %{ocamlopt} -shared -linkall -o %{targets})))
+
+(install
+  (section lib_root)
+  (package fix-to-elim)
+  (files
+    (fixtoelim_full_plugin.cmxs as coq/user-contrib/fixtoelim_full_plugin.cmxs))) 
+
+(rule
+ (targets fixtranslation.ml)
+ (deps (:pp-file fixtranslation.ml4) )
+ (action (bash "camlp5 pa_o.cmo pr_o.cmo %{lib:coq.grammar:grammar.cma} -loc loc -impl %{pp-file} -o %{targets}")))
+; camlp5 may need the following additional libs, YMMV
+; pa_op.cmo pr_dump.cmo pa_extend.cmo q_MLast.cmo pa_macro.cmo
