@@ -1,5 +1,5 @@
 (coq.theory
- (name FixTranslation)
+ (name Fixtranslation)
  (package fix-to-elim)
  (flags -q -noinit -I ./src)
 )

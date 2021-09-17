@@ -4,6 +4,7 @@
  (synopsis "Fixpoint to Eliminator Translation")
  (flags :standard -w -27 -warn-error -A)       ; CoqPP codes requires this
  (modules ("fixtranslation"))
+ (library_flags -linkall)
  (libraries
    coq.vernac                      ; needed for vernac extend
    coq-serapi.serlib
@@ -14,18 +15,38 @@
 ))
 
 (rule
+ (targets fixtranslation.ml)
+ (deps (:pp-file fixtranslation.ml4) )
+ (action (bash "camlp5 pa_o.cmo pr_o.cmo pa_op.cmo pr_dump.cmo pa_extend.cmo q_MLast.cmo pa_macro.cmo %{lib:coq.grammar:grammar.cma} -loc loc -impl %{pp-file} -o %{targets}")))
+
+(rule
   (targets fixtoelim_full_plugin.cmxs)
-  (action (run %{ocamlopt} -shared -linkall -o %{targets})))
+  (action (run %{ocamlopt} -shared -linkall -o %{targets}
+           %{lib:coq-plugin-lib.utilities:utilities.cmxa}
+           %{lib:coq-plugin-lib.termutils:termutils.cmxa}
+           %{lib:coq-plugin-lib.inference:inference.cmxa}
+           %{lib:coq-plugin-lib.representationutils:representationutils.cmxa}
+           %{lib:coq-plugin-lib.state:state.cmxa}
+           %{lib:coq-plugin-lib.envs:envs.cmxa}
+           %{lib:coq-plugin-lib.typesandequality:typesandequality.cmxa}
+           %{lib:coq-plugin-lib.hofs:hofs.cmxa}
+           %{lib:coq-plugin-lib.debruijn:debruijn.cmxa}
+           %{lib:coq-plugin-lib.constants:constants.cmxa}
+           %{lib:coq-plugin-lib.hofimpls:hofimpls.cmxa}
+           %{lib:coq-plugin-lib.inductive:inductive.cmxa}
+           %{lib:coq-plugin-lib.contexts:contexts.cmxa}
+           %{lib:coq-plugin-lib.transformation:transformation.cmxa}
+           %{lib:fix-to-elim.abstraction:abstraction.cmxa}
+           %{lib:fix-to-elim.usability:usability.cmxa}
+           %{lib:fix-to-elim.automation:automation.cmxa}
+           %{lib:fix-to-elim.options:options.cmxa}
+           %{cmxa:fixtoelim})))
 
 (install
   (section lib_root)
   (package fix-to-elim)
   (files
     (fixtoelim_full_plugin.cmxs as coq/user-contrib/fixtoelim_full_plugin.cmxs))) 
+    
 
-(rule
- (targets fixtranslation.ml)
- (deps (:pp-file fixtranslation.ml4) )
- (action (bash "camlp5 pa_o.cmo pr_o.cmo %{lib:coq.grammar:grammar.cma} -loc loc -impl %{pp-file} -o %{targets}")))
-; camlp5 may need the following additional libs, YMMV
-; pa_op.cmo pr_dump.cmo pa_extend.cmo q_MLast.cmo pa_macro.cmo
+
