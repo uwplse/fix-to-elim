@@ -86,7 +86,7 @@ src/automation/desugar.ml
 src/options.mli
 src/options.ml
 
-src/fixtranslation.ml4
+src/fixtranslation.mlg
 src/fixtoelim.mlpack
 
 theories/Fixtoelim.v
