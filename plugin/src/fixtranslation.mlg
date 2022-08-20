@@ -5,7 +5,6 @@ open Stdarg
 open Desugar
 open Names
 open Transform
-open Nameutils
 open Substitution
 open Util
 open Global
@@ -18,8 +17,8 @@ open Declarations
 open Preprocess_errors
 open Options
 
-module Globmap = Globnames.Refmap
-module Globset = Globnames.Refset
+module Globmap = GlobRef.Map
+module Globset = GlobRef.Set
 module DPset = Set.Make(DirPath)
 
 (*
