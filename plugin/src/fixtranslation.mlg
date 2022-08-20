@@ -5,6 +5,7 @@ open Stdarg
 open Desugar
 open Names
 open Transform
+open Nameutils
 open Substitution
 open Util
 open Global
