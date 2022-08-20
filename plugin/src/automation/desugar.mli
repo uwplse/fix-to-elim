@@ -1,7 +1,3 @@
-open Environ
-open Constr
-open Evd
-
 (*
  * Translate the given term into an equivalent, bisimulative (i.e., homomorpic
  * reduction behavior) version using eliminators instead of match or fix
