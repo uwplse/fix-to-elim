@@ -344,8 +344,8 @@ let desugar_constr env sigma trm =
   let sigma, trm' = aux env (sigma, trm) in
   let eterm = EConstr.of_constr trm' in
   try
-    let (sigma, typ) = Typing.type_of ~refresh:true env sigma eterm (* might be able to set refresh to false *) in
-    sigma, EConstr.to_constr sigma typ
+    let (sigma, _) = Typing.type_of ~refresh:true env sigma eterm (* might be able to set refresh to false *) in
+    sigma, trm'
   with PretypeError (env, sigma, err) ->
     user_err
       "desugar"
