@@ -194,7 +194,7 @@ let do_desugar_module ?(opaques=[]) ?(transparents=[]) ident mod_ref =
   in
   let consts = all_transitive_constants env m exceptions exception_mods in
   let init () = List.fold_left include_constant Globmap.empty consts in
-  ignore (transform_module_structure ~init ~opaques ident desugar_constr m)
+  ignore (transform_module_structure env ~init ~opaques ident desugar_constr m)
 }
 
 (* --- Commands --- *)
