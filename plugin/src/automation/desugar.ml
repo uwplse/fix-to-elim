@@ -46,7 +46,7 @@ let decompose_indvect env ind_type sigma =
     with _ ->
       failwith "type passed to decompose_indvect must be an inductive type"
   in
-  let nparam = inductive_nparams (out_punivs pind) in
+  let nparam = inductive_nparams env (out_punivs pind) in
   let params, indices = Array.chop nparam args in
   sigma, (pind, params, indices)
 
@@ -129,7 +129,7 @@ let premise_of_case env ind_fam (ctxt, body) =
         let args = Array.append (Array.map shift indices) [|mkRel 1|] in
         let rec_type = prod_appvect (shift_by j fix_type) args in
         let fix_call = mkApp (mkRel j, args) in
-        mkLambda (fix_name, rec_type, abstract_subterm fix_call body)
+        mkLambda (get_rel_ctx_name fix_name, rec_type, abstract_subterm fix_call body)
       | _ ->
         body
     in mkLambda_or_LetIn decl body'
@@ -182,7 +182,7 @@ let expand_case env sigma case_term cons_sum =
  *)
 let configure_eliminator env sigma ind_fam typ =
   let ind, params = dest_ind_family ind_fam |> on_fst out_punivs in
-  let nb = inductive_nrealargs ind + 1 in
+  let nb = inductive_nrealargs env ind + 1 in
   let typ_ctxt, typ_body =
     let typ_ctxt, typ_body = decompose_prod_n_assum nb typ in
     let ind_sort = get_arity env ind_fam |> snd in
@@ -194,7 +194,7 @@ let configure_eliminator env sigma ind_fam typ =
   let sigma, elim =
     let typ_env = Environ.push_rel_context typ_ctxt env in
     let sigma, typ_sort = infer_sort typ_env sigma typ_body in
-    let elim_trm = Indrec.lookup_eliminator ind typ_sort in
+    let elim_trm = Indrec.lookup_eliminator env ind typ_sort in
     new_global sigma elim_trm
   in
   let motive = recompose_lam_assum typ_ctxt typ_body in
@@ -324,7 +324,7 @@ let desugar_constr env sigma trm =
         | Fix (([|fix_pos|], 0), ([|fix_name|], [|fix_type|], [|fix_term|])) ->
            aux
              env
-             (desugar_fixpoint env sigma fix_pos fix_name fix_type fix_term)
+             (desugar_fixpoint env sigma fix_pos fix_name.binder_name fix_type fix_term)
         | Fix _ ->
            user_err "desugar" err_mutual_recursion [try_opaque] [cool_feature]
         | CoFix _ ->
@@ -342,8 +342,9 @@ let desugar_constr env sigma trm =
       trm
   in
   let sigma, trm' = aux env (sigma, trm) in
+  let eterm = EConstr.of_constr trm' in
   try
-    let _ = Typing.e_type_of env (ref sigma) (EConstr.of_constr trm') in
+    let (sigma, _) = Typing.type_of ~refresh:false env sigma eterm (* might be able to set refresh to false *) in
     sigma, trm'
   with PretypeError (env, sigma, err) ->
     user_err
