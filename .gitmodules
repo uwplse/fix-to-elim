@@ -1,3 +1,4 @@
 [submodule "plugin/src/coq-plugin-lib"]
 	path = plugin/src/coq-plugin-lib
 	url = https://github.com/uwplse/coq-plugin-lib.git
+	branch = 8.9_for_pumpkin_patch
