@@ -46,7 +46,7 @@ let decompose_indvect env ind_type sigma =
     with _ ->
       failwith "type passed to decompose_indvect must be an inductive type"
   in
-  let nparam = inductive_nparams (out_punivs pind) in
+  let nparam = inductive_nparams env (out_punivs pind) in
   let params, indices = Array.chop nparam args in
   sigma, (pind, params, indices)
 
@@ -123,13 +123,13 @@ let premise_of_case env ind_fam (ctxt, body) =
     let i = unshift_i_by i nb in
     let j = shift_i i in
     let body' =
-      match eq_constr_head (shift_by i ind_head) (rel_type decl) with
+      match eq_constr_head (shift_by env i ind_head) (rel_type decl) with
       | Some indices ->
         assert (is_rel_assum decl);
-        let args = Array.append (Array.map shift indices) [|mkRel 1|] in
-        let rec_type = prod_appvect (shift_by j fix_type) args in
+        let args = Array.append (Array.map (shift env) indices) [|mkRel 1|] in
+        let rec_type = prod_appvect (shift_by env j fix_type) args in
         let fix_call = mkApp (mkRel j, args) in
-        mkLambda (fix_name, rec_type, abstract_subterm fix_call body)
+        mkLambda (get_rel_ctx_name fix_name, rec_type, abstract_subterm fix_call body)
       | _ ->
         body
     in mkLambda_or_LetIn decl body'
@@ -148,7 +148,7 @@ let split_case env sigma fun_term cons_sum =
   let cons = build_dependent_constructor cons_sum in
   let env = Environ.push_rel_context cons_sum.cs_args env in
   let body =
-    let head = shift_by cons_sum.cs_nargs fun_term in
+    let head = shift_by env cons_sum.cs_nargs fun_term in
     let args = Array.append cons_sum.cs_concl_realargs [|cons|] in
     mkApp (head, args) |> Reduction.nf_betaiota env
   in sigma, deanonymize_context env sigma cons_sum.cs_args, body
@@ -158,7 +158,7 @@ let split_case env sigma fun_term cons_sum =
  *)
 let expand_case env sigma case_term cons_sum =
   let body =
-    let head = shift_by cons_sum.cs_nargs case_term in
+    let head = shift_by env cons_sum.cs_nargs case_term in
     let args = Rel.to_extended_list mkRel 0 cons_sum.cs_args in
     Reduction.beta_applist head args
   in sigma, deanonymize_context env sigma cons_sum.cs_args, body
@@ -182,19 +182,19 @@ let expand_case env sigma case_term cons_sum =
  *)
 let configure_eliminator env sigma ind_fam typ =
   let ind, params = dest_ind_family ind_fam |> on_fst out_punivs in
-  let nb = inductive_nrealargs ind + 1 in
+  let nb = inductive_nrealargs env ind + 1 in
   let typ_ctxt, typ_body =
     let typ_ctxt, typ_body = decompose_prod_n_assum nb typ in
     let ind_sort = get_arity env ind_fam |> snd in
     if Sorts.family_equal ind_sort Sorts.InProp then
-      List.tl typ_ctxt, unshift typ_body
+      List.tl typ_ctxt, unshift env typ_body
     else
        typ_ctxt, typ_body
   in
   let sigma, elim =
     let typ_env = Environ.push_rel_context typ_ctxt env in
     let sigma, typ_sort = infer_sort typ_env sigma typ_body in
-    let elim_trm = Indrec.lookup_eliminator ind typ_sort in
+    let elim_trm = Indrec.lookup_eliminator env ind typ_sort in
     new_global sigma elim_trm
   in
   let motive = recompose_lam_assum typ_ctxt typ_body in
@@ -213,7 +213,7 @@ let desugar_recursion env sigma ind_fam fix_name fix_type fix_term =
     let build_premise cons_sum sigma =
       let cons_sum = lift_constructor 1 cons_sum in
       let sigma, split_ctx, split = split_case fix_env sigma fix_term cons_sum in
-      sigma, unshift (premise_of_case fix_env ind_fam (split_ctx, split))
+      sigma, unshift env (premise_of_case fix_env ind_fam (split_ctx, split))
     in map_state_array build_premise (get_constructors env ind_fam) sigma
   in sigma, mkApp (elim_head, premises)
 
@@ -242,7 +242,7 @@ let desugar_fixpoint env sigma fix_pos fix_name fix_type fix_term =
   let _, fix_term = decompose_lam_n_zeta nb fix_term in
   (* Gather information on the inductive type for recursion/elimination *)
   let ind_name, ind_type = Rel.lookup 1 fix_ctxt |> pair rel_name rel_type in
-  let sigma, (pind, params, indices) = decompose_ind env (shift ind_type) sigma in
+  let sigma, (pind, params, indices) = decompose_ind env (shift env ind_type) sigma in
   let ind_fam = make_ind_family (pind, params) in
   let env = Environ.push_rel_context fix_ctxt env in (* for eventual wrapper *)
   let rec_ctxt, rec_args = (* quantify the inductive type like an eliminator *)
@@ -254,8 +254,8 @@ let desugar_fixpoint env sigma fix_pos fix_name fix_type fix_term =
   let nb' = Rel.length rec_ctxt in
   let k = unshift_i_by nb nb' in (* always more bindings than before *)
   let rec_type =
-    fix_type |> shift_local nb nb |> (* for external wrapper *)
-    shift_local nb k |> smash_prod_assum rec_ctxt
+    fix_type |> shift_local env nb nb |> (* for external wrapper *)
+    shift_local env nb k |> smash_prod_assum rec_ctxt
   in
   let rec_term =
     let nb_rec = shift_i nb in (* include self reference *)
@@ -266,9 +266,9 @@ let desugar_fixpoint env sigma fix_pos fix_name fix_type fix_term =
         (Termops.lift_rel_context nb_rec fix_ctxt)
         (mkApp (mkRel nb_rec, rec_args))
     in
-    fix_term |> shift_local nb_rec nb |> (* for external wrapper *)
-    shift_local nb k |> smash_lam_assum rec_ctxt |>
-    shift_local 1 1 |> Vars.subst1 fix_self |> Reduction.nf_betaiota rec_env
+    fix_term |> shift_local env nb_rec nb |> (* for external wrapper *)
+    shift_local env nb k |> smash_lam_assum rec_ctxt |>
+    shift_local env 1 1 |> Vars.subst1 fix_self |> Reduction.nf_betaiota rec_env
   in
   (* Desugar the simple recursive function into an elimination form *)
   let sigma, rec_elim = desugar_recursion env sigma ind_fam fix_name rec_type rec_term in
@@ -294,11 +294,11 @@ let desugar_match env sigma info pred discr cases =
   let sigma, elim_head = configure_eliminator env sigma ind_fam typ in
   let premises =
     let fix_env = push_local (Name.Anonymous, typ) env in
-    let cases = Array.map shift cases in
+    let cases = Array.map (shift env) cases in
     let build_premise cons_case cons_sum =
       let cons_sum = lift_constructor 1 cons_sum in
       let sigma, expanded_ctx, expanded = expand_case fix_env sigma cons_case cons_sum in
-      unshift (premise_of_case fix_env ind_fam (expanded_ctx, expanded)) (* TODO sigma *)
+      unshift env (premise_of_case fix_env ind_fam (expanded_ctx, expanded)) (* TODO sigma *)
     in get_constructors fix_env ind_fam |> Array.map2 build_premise cases
   in sigma, mkApp (elim_head, Array.concat [premises; indices; [|discr|]])
 
@@ -324,12 +324,13 @@ let desugar_constr env sigma trm =
         | Fix (([|fix_pos|], 0), ([|fix_name|], [|fix_type|], [|fix_term|])) ->
            aux
              env
-             (desugar_fixpoint env sigma fix_pos fix_name fix_type fix_term)
+             (desugar_fixpoint env sigma fix_pos (Context.binder_name fix_name) fix_type fix_term)
         | Fix _ ->
            user_err "desugar" err_mutual_recursion [try_opaque] [cool_feature]
         | CoFix _ ->
            user_err "desugar" err_corecursion [try_opaque] [cool_feature]
-        | Case (info, pred, discr, cases) ->
+        | Case (ci, u, pms, p, iv, c, brs) ->
+          let (info, pred, iv, discr, cases) = Inductive.expand_case env (ci, u, pms, p, iv, c, brs) in
            aux
              env
              (desugar_match env sigma info pred discr cases)
@@ -343,7 +344,7 @@ let desugar_constr env sigma trm =
   in
   let sigma, trm' = aux env (sigma, trm) in
   try
-    let _ = Typing.e_type_of env (ref sigma) (EConstr.of_constr trm') in
+    let _ = Typing.type_of env sigma (EConstr.of_constr trm') in
     sigma, trm'
   with PretypeError (env, sigma, err) ->
     user_err

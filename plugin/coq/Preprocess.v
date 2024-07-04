@@ -99,102 +99,92 @@ Section ListTests.
   Lemma test_destruct_list : actual_destruct_list = expected_destruct_list. Proof. reflexivity. Qed.
 
   Preprocess List.hd_error_tl_repr as actual_hd_error_tl_repr.
-  Definition expected_hd_error_tl_repr (A : Type) (l : list A) :
-    forall (a : A) (r : list A),
-      List.hd_error l = Some a /\ List.tl l = r <-> l = (a :: r)
-    :=
-      list_ind
-        (fun l0 : list A =>
-           forall (a : A) (r : list A),
-             List.hd_error l0 = Some a /\ List.tl l0 = r <-> l0 = (a :: r))
-        (fun (a : A) (r : list A) =>
-           conj
-             (fun H : None = Some a /\ nil = r =>
-                and_ind
-                  (fun (H0 : None = Some a) (_ : nil = r) =>
-                     let H2 : False :=
-                         eq_ind None
-                                (fun e : option A =>
-                                   option_rect (fun _ : option A => Prop)
-                                               (fun _ : A => False) True e) I (Some a) H0 in
-                     False_ind (nil = (a :: r)) H2) H)
-             (fun H : nil = (a :: r) =>
-                conj
-                  (let H0 : False :=
-                       eq_ind nil
-                              (fun e : list A =>
-                                 list_rect (fun _ : list A => Prop) True
-                                           (fun (_ : A) (_ : list A) (_ : Prop) => False) e) I
-                              (a :: r) H in
-                   False_ind (None = Some a) H0)
-                  (let H0 : False :=
-                       eq_ind nil
-                              (fun e : list A =>
-                                 list_rect (fun _ : list A => Prop) True
-                                           (fun (_ : A) (_ : list A) (_ : Prop) => False) e) I
-                              (a :: r) H in
-                   False_ind (nil = r) H0)))
-        (fun (x : A) (xs : list A)
-             (_ : forall (a : A) (r : list A),
-                 List.hd_error xs = Some a /\ List.tl xs = r <-> xs = (a :: r))
-             (a : A) (r : list A) =>
-           conj
-             (fun H : Some x = Some a /\ xs = r =>
-                and_ind
-                  (fun (H1 : Some x = Some a) (H2 : xs = r) =>
-                     let H0 : Some a = Some a -> (x :: xs) = (a :: r) :=
-                         eq_ind (Some x)
-                                (fun y : option A =>
-                                   y = Some a -> (x :: xs) = (a :: r))
-                                (fun H0 : Some x = Some a =>
-                                   (fun H3 : Some x = Some a =>
-                                      let H4 : x = a :=
-                                          f_equal
-                                            (fun e : option A =>
-                                               option_rect (fun _ : option A => A)
-                                                           (fun a0 : A => a0) x e) H3 in
-                                      (fun H5 : x = a =>
-                                         let H6 : x = a := H5 in
-                                         eq_ind_r (fun a0 : A => (a0 :: xs) = (a :: r))
-                                                  (eq_ind_r
-                                                     (fun xs0 : list A => (a :: xs0) = (a :: r))
-                                                     eq_refl H2) H6) H4) H0) (Some a) H1 in
-                     H0 eq_refl) H)
-             (fun H : (x :: xs) = (a :: r) =>
-                let H0 : (a :: r) = (a :: r) -> Some x = Some a /\ xs = r :=
-                    eq_ind (x :: xs)
-                           (fun y : list A => y = (a :: r) -> Some x = Some a /\ xs = r)
-                           (fun H0 : (x :: xs) = (a :: r) =>
-                              (fun H1 : (x :: xs) = (a :: r) =>
-                                 let H2 : xs = r :=
-                                     f_equal
-                                       (fun e : list A =>
-                                          list_rect (fun _ : list A => list A) xs
-                                                    (fun (_ : A) (l0 _ : list A) => l0) e) H1 in
-                                 (let H3 : x = a :=
-                                      f_equal
-                                        (fun e : list A =>
-                                           list_rect (fun _ : list A => A) x
-                                                     (fun (a0 : A) (_ : list A) (_ : A) => a0) e) H1 in
-                                  (fun H4 : x = a =>
-                                     let H5 : x = a := H4 in
-                                     eq_ind_r (fun a0 : A => xs = r -> Some a0 = Some a /\ xs = r)
-                                              (fun H6 : xs = r =>
-                                                 let H7 : xs = r := H6 in
-                                                 eq_ind_r (fun l0 : list A => Some a = Some a /\ l0 = r)
-                                                          (eq_ind_r
-                                                             (fun x0 : A =>
-                                                                (x0 :: xs) = (a :: r) ->
-                                                                Some a = Some a /\ r = r)
-                                                             (fun H8 : (a :: xs) = (a :: r) =>
-                                                                eq_ind_r
-                                                                  (fun xs0 : list A =>
-                                                                     (a :: xs0) = (a :: r) ->
-                                                                     Some a = Some a /\ r = r)
-                                                                  (fun _ : (a :: r) = (a :: r) =>
-                                                                     conj eq_refl eq_refl) H6 H8) H4 H) H7) H5) H3) H2)
-                                H0) (a :: r) H in
-                H0 eq_refl)) l.
+  Definition expected_hd_error_tl_repr := 
+  fun (A : Type) (l : list A) (a : A) (r : list A) =>
+  list_ind
+    (fun l0 : list A =>
+     List.hd_error l0 = Some a /\ List.tl l0 = r <-> l0 = a :: r)
+    (conj
+      (fun H : None = Some a /\ nil = r =>
+        and_ind
+          (fun (H0 : None = Some a) (_ : nil = r) =>
+           let H2 : False :=
+             eq_ind None
+               (fun e : option A =>
+                option_rect (fun _ : option A => Prop) 
+                  (fun _ : A => False) True e) I (Some a) H0 in
+           False_ind (nil = a :: r) H2) H)
+       (fun H : nil = a :: r =>
+        conj
+          (let H0 : False :=
+             eq_ind nil
+               (fun e : list A =>
+                list_rect (fun _ : list A => Prop) True
+                  (fun (_ : A) (_ : list A) (_ : Prop) => False) e) I 
+               (a :: r) H in
+           False_ind (None = Some a) H0)
+          (let H0 : False :=
+             eq_ind nil
+               (fun e : list A =>
+                list_rect (fun _ : list A => Prop) True
+                  (fun (_ : A) (_ : list A) (_ : Prop) => False) e) I 
+               (a :: r) H in
+           False_ind (nil = r) H0)))
+    (fun (a0 : A) (l0 : list A)
+       (_ : List.hd_error l0 = Some a /\ List.tl l0 = r <-> l0 = a :: r) =>
+     conj
+       (fun H : Some a0 = Some a /\ l0 = r =>
+        and_ind
+          (fun (e : Some a0 = Some a) (e0 : l0 = r) =>
+           let H0 : Some a = Some a -> a0 :: l0 = a :: r :=
+             eq_ind (Some a0)
+               (fun y : option A => y = Some a -> a0 :: l0 = a :: r)
+               (fun H0 : Some a0 = Some a =>
+                (fun H1 : Some a0 = Some a =>
+                 let H2 : a0 = a :=
+                   f_equal
+                     (fun e1 : option A =>
+                      option_rect (fun _ : option A => A) 
+                        (fun a1 : A => a1) a0 e1) H1 in
+                 (fun H3 : a0 = a =>
+                  let H4 : a0 = a := H3 in
+                  eq_ind_r (fun a1 : A => a1 :: l0 = a :: r)
+                    (eq_ind_r (fun xs : list A => a :: xs = a :: r) eq_refl e0)
+                    H4) H2) H0) (Some a) e in
+           H0 eq_refl) H)
+       (fun H : a0 :: l0 = a :: r =>
+        let H0 : a :: r = a :: r -> Some a0 = Some a /\ l0 = r :=
+          eq_ind (a0 :: l0)
+            (fun y : list A => y = a :: r -> Some a0 = Some a /\ l0 = r)
+            (fun H0 : a0 :: l0 = a :: r =>
+             (fun H1 : a0 :: l0 = a :: r =>
+              let H2 : l0 = r :=
+                f_equal
+                  (fun e : list A =>
+                   list_rect (fun _ : list A => list A) l0
+                     (fun (_ : A) (l1 _ : list A) => l1) e) H1 in
+              (let H3 : a0 = a :=
+                 f_equal
+                   (fun e : list A =>
+                    list_rect (fun _ : list A => A) a0
+                      (fun (a1 : A) (_ : list A) (_ : A) => a1) e) H1 in
+               (fun H4 : a0 = a =>
+                let H5 : a0 = a := H4 in
+                eq_ind_r (fun a1 : A => l0 = r -> Some a1 = Some a /\ l0 = r)
+                  (fun H6 : l0 = r =>
+                   let H7 : l0 = r := H6 in
+                   eq_ind_r (fun l1 : list A => Some a = Some a /\ l1 = r)
+                     (eq_ind_r
+                        (fun x : A =>
+                         x :: l0 = a :: r -> Some a = Some a /\ r = r)
+                        (fun H8 : a :: l0 = a :: r =>
+                         eq_ind_r
+                           (fun xs : list A =>
+                            a :: xs = a :: r -> Some a = Some a /\ r = r)
+                           (fun _ : a :: r = a :: r => conj eq_refl eq_refl) H6
+                           H8) H4 H) H7) H5) H3) H2) H0) 
+            (a :: r) H in
+        H0 eq_refl)) l.
   Lemma test_hd_error_tl_repr : actual_hd_error_tl_repr = expected_hd_error_tl_repr. Proof. reflexivity. Qed.
 
   Preprocess List.length_zero_iff_nil as actual_length_zero_iff_nil.
@@ -323,28 +313,26 @@ Section ListTests.
   Lemma test_in_dec : actual_in_dec = expected_in_dec. Proof. reflexivity. Qed.
 
   Preprocess List.app_cons_not_nil as actual_app_cons_not_nil.
-  Definition expected_app_cons_not_nil (A : Type) (x : list A) : forall (y : list A) (a : A), nil <> (x ++ a :: y) :=
-    list_ind
-      (fun l : list A =>
-         forall (y : list A) (a : A), nil = (l ++ a :: y) -> False)
-      (fun (y : list A) (a : A) (H : nil = (a :: y)) =>
-         let H0 : False :=
-             eq_ind nil
-                    (fun e : list A =>
-                       list_rect (fun _ : list A => Prop) True
-                                 (fun (_ : A) (_ : list A) (_ : Prop) => False) e) I
-                    (a :: y) H in
-         False_ind False H0)
-      (fun (a : A) (l : list A)
-           (_ : forall (y : list A) (a0 : A), nil = (l ++ a0 :: y) -> False)
-           (y : list A) (a0 : A) (H : nil = (a :: l ++ a0 :: y)) =>
-         let H0 : False :=
-             eq_ind nil
-                    (fun e : list A =>
-                       list_rect (fun _ : list A => Prop) True
-                                 (fun (_ : A) (_ : list A) (_ : Prop) => False) e) I
-                    (a :: l ++ a0 :: y) H in
-         False_ind False H0) x.
+  Definition expected_app_cons_not_nil := 
+  fun (A : Type) (x y : list A) (a : A) =>
+  list_ind (fun l : list A => nil = l ++ a :: y -> False)
+    (fun H : nil = a :: y =>
+     let H0 : False :=
+      eq_ind nil
+         (fun e : list A =>
+          list_rect (fun _ : list A => Prop) True
+            (fun (_ : A) (_ : list A) (_ : Prop) => False) e) I 
+         (a :: y) H in
+     False_ind False H0)
+    (fun (a0 : A) (l : list A) (_ : nil = l ++ a :: y -> False)
+       (H : nil = a0 :: l ++ a :: y) =>
+     let H0 : False :=
+       eq_ind nil
+         (fun e : list A =>
+          list_rect (fun _ : list A => Prop) True
+            (fun (_ : A) (_ : list A) (_ : Prop) => False) e) I
+         (a0 :: l ++ a :: y) H in
+     False_ind False H0) x.
   Lemma test_app_cons_not_nil : actual_app_cons_not_nil = expected_app_cons_not_nil. Proof. reflexivity. Qed.
 
   Preprocess List.app_nil_l as actual_app_nil_l.
@@ -401,124 +389,99 @@ Section ListTests.
   Lemma test_app_comm_cons : actual_app_comm_cons = expected_app_comm_cons. Proof. reflexivity. Qed.
 
   Preprocess List.app_eq_nil as actual_app_eq_nil.
-  Definition expected_app_eq_nil (A : Type) (l : list A) : forall (l' : list A), l ++ l' = nil -> l = nil /\ l' = nil :=
-    list_ind
-      (fun l0 : list A =>
-         forall l' : list A, (l0 ++ l') = nil -> l0 = nil /\ l' = nil)
-      (fun l' : list A =>
-         list_ind
-           (fun l0 : list A => (nil ++ l0) = nil -> nil = nil /\ l0 = nil)
-           (fun H : nil = nil => conj H H)
-           (fun (y : A) (l'0 : list A)
-                (_ : (nil ++ l'0) = nil -> nil = nil /\ l'0 = nil)
-                (H : (y :: l'0) = nil) => conj eq_refl H) l')
-      (fun (x : A) (l0 : list A)
-           (_ : forall l' : list A, (l0 ++ l') = nil -> l0 = nil /\ l' = nil)
-           (l' : list A) =>
-         list_ind
-           (fun l1 : list A =>
-              ((x :: l0) ++ l1) = nil -> (x :: l0) = nil /\ l1 = nil)
-           (fun H : (x :: l0 ++ nil) = nil =>
-              let H0 : False :=
-                  eq_ind (x :: l0 ++ nil)
-                         (fun e : list A =>
-                            list_rect (fun _ : list A => Prop) False
-                                      (fun (_ : A) (_ : list A) (_ : Prop) => True) e) I nil H in
-              False_ind ((x :: l0) = nil /\ nil = nil) H0)
-           (fun (y : A) (l'0 : list A)
-                (_ : ((x :: l0) ++ l'0) = nil ->
-                     (x :: l0) = nil /\ l'0 = nil)
-                (H : (x :: l0 ++ y :: l'0) = nil) =>
-              let H0 : False :=
-                  eq_ind (x :: l0 ++ y :: l'0)
-                         (fun e : list A =>
-                            list_rect (fun _ : list A => Prop) False
-                                      (fun (_ : A) (_ : list A) (_ : Prop) => True) e) I nil H in
-              False_ind ((x :: l0) = nil /\ (y :: l'0) = nil) H0) l') l.
+  Definition expected_app_eq_nil := 
+  fun (A : Type) (l l' : list A) =>
+  list_ind (fun l0 : list A => l0 ++ l' = nil -> l0 = nil /\ l' = nil)
+    (list_ind (fun l0 : list A => nil ++ l0 = nil -> nil = nil /\ l0 = nil)
+      (fun H : nil = nil => conj H H)
+       (fun (a : A) (l0 : list A)
+          (_ : nil ++ l0 = nil -> nil = nil /\ l0 = nil) 
+          (H : a :: l0 = nil) => conj eq_refl H) l')
+    (fun (a : A) (l0 : list A) (_ : l0 ++ l' = nil -> l0 = nil /\ l' = nil) =>
+     list_ind
+       (fun l1 : list A => (a :: l0) ++ l1 = nil -> a :: l0 = nil /\ l1 = nil)
+       (fun H : a :: l0 ++ nil = nil =>
+        let H0 : False :=
+          eq_ind (a :: l0 ++ nil)
+            (fun e : list A =>
+             list_rect (fun _ : list A => Prop) False
+               (fun (_ : A) (_ : list A) (_ : Prop) => True) e) I nil H in
+        False_ind (a :: l0 = nil /\ nil = nil) H0)
+       (fun (a0 : A) (l1 : list A)
+          (_ : (a :: l0) ++ l1 = nil -> a :: l0 = nil /\ l1 = nil)
+          (H : a :: l0 ++ a0 :: l1 = nil) =>
+        let H0 : False :=
+          eq_ind (a :: l0 ++ a0 :: l1)
+            (fun e : list A =>
+             list_rect (fun _ : list A => Prop) False
+               (fun (_ : A) (_ : list A) (_ : Prop) => True) e) I nil H in
+        False_ind (a :: l0 = nil /\ a0 :: l1 = nil) H0) l') l.
   Lemma test_app_eq_nil : actual_app_eq_nil = expected_app_eq_nil. Proof. reflexivity. Qed.
 
   Preprocess List.app_eq_unit as actual_app_eq_unit.
-  Definition expected_app_eq_unit (A : Type) (x : list A) :
-    forall (y : list A) (a : A),
-      x ++ y = a :: nil -> x = nil /\ y = a :: nil \/ x = a :: nil /\ y = nil
-    :=
-      list_ind
-        (fun l : list A =>
-           forall (y : list A) (a : A),
-             (l ++ y) = (a :: nil) ->
-             l = nil /\ y = (a :: nil) \/ l = (a :: nil) /\ y = nil)
-        (fun y : list A =>
-           list_ind
-             (fun l : list A =>
-                forall a : A,
-                  (nil ++ l) = (a :: nil) ->
-                  nil = nil /\ l = (a :: nil) \/ nil = (a :: nil) /\ l = nil)
-             (fun (a : A) (H : nil = (a :: nil)) =>
-                let H0 : False :=
-                    eq_ind nil
-                           (fun e : list A =>
-                              list_rect (fun _ : list A => Prop) True
-                                        (fun (_ : A) (_ : list A) (_ : Prop) => False) e) I
-                           (a :: nil) H in
-                False_ind
-                  (nil = nil /\ nil = (a :: nil) \/
-                                nil = (a :: nil) /\ nil = nil) H0)
-             (fun (a : A) (l : list A)
-                  (_ : forall a0 : A,
-                      (nil ++ l) = (a0 :: nil) ->
-                      nil = nil /\ l = (a0 :: nil) \/
-                                   nil = (a0 :: nil) /\ l = nil) (a0 : A)
-                  (H : (a :: l) = (a0 :: nil)) =>
-                or_introl (conj eq_refl H)) y)
-        (fun (a : A) (l : list A)
-             (_ : forall (y : list A) (a0 : A),
-                 (l ++ y) = (a0 :: nil) ->
-                 l = nil /\ y = (a0 :: nil) \/ l = (a0 :: nil) /\ y = nil)
-             (y : list A) =>
-           list_ind
-             (fun l0 : list A =>
-                forall a0 : A,
-                  ((a :: l) ++ l0) = (a0 :: nil) ->
-                  (a :: l) = nil /\ l0 = (a0 :: nil) \/
-                                    (a :: l) = (a0 :: nil) /\ l0 = nil)
-             (fun (a0 : A) (H : (a :: l ++ nil) = (a0 :: nil)) =>
-                or_intror
-                  (conj
-                     ((fun E : (l ++ nil) = l =>
-                         eq_ind_r
-                           (fun l0 : list A =>
-                              (a :: l0) = (a0 :: nil) ->
-                              (a :: l) = (a0 :: nil))
-                           (fun H0 : (a :: l) = (a0 :: nil) => H0) E)
-                        (List.app_nil_r l) H) eq_refl))
-             (fun (a0 : A) (l0 : list A)
-                  (_ : forall a1 : A,
-                      ((a :: l) ++ l0) = (a1 :: nil) ->
-                      (a :: l) = nil /\ l0 = (a1 :: nil) \/
-                                        (a :: l) = (a1 :: nil) /\ l0 = nil)
-                  (a1 : A) (H : (a :: l ++ a0 :: l0) = (a1 :: nil)) =>
-                let H0 : (l ++ a0 :: l0) = nil :=
-                    f_equal
-                      (fun e : list A =>
-                         list_rect (fun _ : list A => list A)
-                                   ((fun l1 : list A =>
-                                       list_rect (fun _ : list A => list A -> list A)
-                                                 (fun m : list A => m)
-                                                 (fun (a2 : A) (_ : list A) (app : list A -> list A)
-                                                      (m : list A) => (a2 :: app m)) l1) l
-                                                                                         (a0 :: l0)) (fun (_ : A) (l1 _ : list A) => l1) e) H in
-                (let H1 : a = a1 :=
-                     f_equal
-                       (fun e : list A =>
-                          list_rect (fun _ : list A => A) a
-                                    (fun (a2 : A) (_ : list A) (_ : A) => a2) e) H in
-                 (fun (_ : a = a1) (H3 : (l ++ a0 :: l0) = nil) =>
-                    let H4 : nil = (l ++ a0 :: l0) := eq_sym H3 in
-                    let H5 : False := List.app_cons_not_nil l l0 a0 H4 in
-                    False_ind
-                      ((a :: l) = nil /\ (a0 :: l0) = (a1 :: nil) \/
-                                         (a :: l) = (a1 :: nil) /\ (a0 :: l0) = nil) H5) H1)
-                  H0) y) x.
+  Print actual_app_eq_unit.
+  Definition expected_app_eq_unit := 
+  fun (A : Type) (x y : list A) (a : A) =>
+  list_ind
+    (fun l : list A =>
+     l ++ y = a :: nil -> l = nil /\ y = a :: nil \/ l = a :: nil /\ y = nil)
+    (list_ind
+      (fun l : list A =>
+        nil ++ l = a :: nil ->
+        nil = nil /\ l = a :: nil \/ nil = a :: nil /\ l = nil)
+       (fun H : nil = a :: nil =>
+        let H0 : False :=
+          eq_ind nil
+            (fun e : list A =>
+             list_rect (fun _ : list A => Prop) True
+               (fun (_ : A) (_ : list A) (_ : Prop) => False) e) I 
+            (a :: nil) H in
+        False_ind (nil = nil /\ nil = a :: nil \/ nil = a :: nil /\ nil = nil)
+          H0)
+       (fun (a0 : A) (l : list A)
+          (_ : nil ++ l = a :: nil ->
+               nil = nil /\ l = a :: nil \/ nil = a :: nil /\ l = nil)
+          (H : a0 :: l = a :: nil) => or_introl (conj eq_refl H)) y)
+    (fun (a0 : A) (l : list A)
+       (_ : l ++ y = a :: nil ->
+            l = nil /\ y = a :: nil \/ l = a :: nil /\ y = nil) =>
+     list_ind
+       (fun l0 : list A =>
+        (a0 :: l) ++ l0 = a :: nil ->
+        a0 :: l = nil /\ l0 = a :: nil \/ a0 :: l = a :: nil /\ l0 = nil)
+       (fun H : a0 :: l ++ nil = a :: nil =>
+        or_intror
+          (conj
+             ((fun E : l ++ nil = l =>
+               eq_ind_r
+                 (fun l0 : list A => a0 :: l0 = a :: nil -> a0 :: l = a :: nil)
+                 (fun H0 : a0 :: l = a :: nil => H0) E) 
+                (List.app_nil_r l) H) eq_refl))
+       (fun (a1 : A) (l0 : list A)
+          (_ : (a0 :: l) ++ l0 = a :: nil ->
+               a0 :: l = nil /\ l0 = a :: nil \/ a0 :: l = a :: nil /\ l0 = nil)
+          (H : a0 :: l ++ a1 :: l0 = a :: nil) =>
+        let H0 : l ++ a1 :: l0 = nil :=
+          f_equal
+            (fun e : list A =>
+             list_rect (fun _ : list A => list A)
+               ((fun l1 : list A =>
+                 list_rect (fun _ : list A => list A -> list A)
+                   (fun m : list A => m)
+                   (fun (y0 : A) (_ : list A) (app : list A -> list A)
+                      (m : list A) => y0 :: app m) l1) l 
+                  (a1 :: l0)) (fun (_ : A) (l1 _ : list A) => l1) e) H in
+        (let H1 : a0 = a :=
+           f_equal
+             (fun e : list A =>
+              list_rect (fun _ : list A => A) a0
+                (fun (a2 : A) (_ : list A) (_ : A) => a2) e) H in
+         (fun (_ : a0 = a) (H3 : l ++ a1 :: l0 = nil) =>
+          let H4 : nil = l ++ a1 :: l0 := eq_sym H3 in
+          let H5 : False := List.app_cons_not_nil l l0 a1 H4 in
+          False_ind
+            (a0 :: l = nil /\ a1 :: l0 = a :: nil \/
+             a0 :: l = a :: nil /\ a1 :: l0 = nil) H5) H1) H0) y) x.
   Lemma test_app_eq_unit : actual_app_eq_unit = expected_app_eq_unit. Proof. reflexivity. Qed.
 
   Preprocess List.app_length as actual_app_length.
@@ -571,26 +534,15 @@ Section ListTests.
   Lemma test_in_app_iff : actual_in_app_iff = expected_in_app_iff. Proof. reflexivity. Qed.
 
   Preprocess List.app_inv_head as actual_app_inv_head.
-  Definition expected_app_inv_head (A : Type) (l : list A) : forall (l1 l2 : list A), (l ++ l1) = (l ++ l2) -> l1 = l2 :=
-    list_ind
-      (fun l0 : list A =>
-         forall l1 l2 : list A, (l0 ++ l1) = (l0 ++ l2) -> l1 = l2)
-      (fun (l1 l2 : list A) (H : l1 = l2) => H)
-      (fun (a : A) (l0 : list A)
-           (IHl : forall l1 l2 : list A,
-               (l0 ++ l1) = (l0 ++ l2) -> l1 = l2)
-           (l1 l2 : list A) (H : (a :: l0 ++ l1) = (a :: l0 ++ l2)) =>
-         let H0 : (l0 ++ l1) = (l0 ++ l2) :=
-             f_equal
-               (fun e : list A =>
-                  list_rect (fun _ : list A => list A)
-                            ((fun l3 : list A =>
-                                list_rect (fun _ : list A => list A -> list A)
-                                          (fun m : list A => m)
-                                          (fun (a0 : A) (_ : list A) (app : list A -> list A)
-                                               (m : list A) => (a0 :: app m)) l3) l0 l1)
-                            (fun (_ : A) (l3 _ : list A) => l3) e) H in
-         (fun H1 : (l0 ++ l1) = (l0 ++ l2) => IHl l1 l2 H1) H0) l.
+  Definition expected_app_inv_head := 
+  fun A : Type =>
+  let H : forall l l1 l2 : list A, l ++ l1 = l ++ l2 -> l1 = l2 :=
+    fun l l1 l2 : list A =>
+    and_ind
+     (fun (e : l ++ l1 = l ++ l2 -> l1 = l2)
+         (_ : l1 = l2 -> l ++ l1 = l ++ l2) => e)
+      (List.app_inv_head_iff l l1 l2) in
+  H.
   Lemma test_app_inv_head : actual_app_inv_head = expected_app_inv_head. Proof. reflexivity. Qed.
 
   Preprocess List.app_inv_tail as actual_app_inv_tail.

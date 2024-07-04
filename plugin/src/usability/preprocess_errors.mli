@@ -1,4 +1,4 @@
-open CErrors
+(* open CErrors *)
 open Environ
 open Evd
 

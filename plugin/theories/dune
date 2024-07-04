@@ -1,0 +1,4 @@
+(coq.theory
+ (name FixPlugin)
+ (package fix-plugin)
+ (plugins fix-plugin.plugin my-plugin.plugin))
