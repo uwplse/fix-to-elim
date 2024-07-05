@@ -1,0 +1,10 @@
+(library
+ (name elim_plugin)
+ (wrapped false)
+ (public_name fix-plugin.plugin)
+ (synopsis "Coq Plugin library")
+ (flags :standard -rectypes -w -3-8-27-28-33)
+ (libraries coq.plugins.ltac my-plugin.plugin))
+
+(include_subdirs unqualified)
+(coq.pp (modules fixtranslation))

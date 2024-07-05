@@ -1,6 +1,6 @@
 open Utilities
 open CErrors
-open Names
+(* open Names *)
 open Himsg
 
 (* 
